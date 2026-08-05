@@ -33,6 +33,7 @@ Multiply the first number by twenty and you are wrong by more than double.
 | **Cache TTL expiry** | wall clock, not compute — a slow agent never collects a read |
 | **Tool definitions** | resent every turn, plus the vendor's own tool-use system prompt |
 | **Thinking tokens** | billed at the output rate, and they do *not* compound |
+| **Tool-change invalidation** | editing the tools array wipes tools, system *and* messages |
 | **ChatML overhead** | ~4 tokens/message + 2 priming, which nothing else counts |
 | **Dated provenance** | every price carries the URL it came from and the day a human read it |
 
@@ -68,6 +69,7 @@ const result = compareCaching(
     reasoningTokensPerTurn: 0,
     toolDefinitionTokens: 0,
     cacheEnabled: true,
+    toolsChangeEachTurn: false,
     cacheTtl: "5m",
     secondsBetweenTurns: 5,
     batchEnabled: false,
@@ -76,18 +78,24 @@ const result = compareCaching(
   guardrailTokenizer,
 );
 
-formatUsd(result.uncached.totalCostUsd); // "$0.9214"
-formatUsd(result.cached.totalCostUsd);   // "$0.4523"
-result.multiple;                          // 2.04
+formatUsd(result.uncached.totalCostUsd); // "$0.8879"
+formatUsd(result.cached.totalCostUsd);   // "$0.4293"
+result.multiple;                          // 2.07
 ```
 
-## Three findings this produced
+Those are the numbers this exact snippet prints, with the prompts truncated as
+shown. The figures quoted elsewhere in this README use the full coding-agent
+prompt, which is longer — paste the snippet and you should get what the comments
+say, or one of us has a bug.
 
-**Your cache does not exist for the first four turns.** Anthropic will not cache
-a prefix under 1,024 tokens (Sonnet 5) or 2,048 (Opus). Under that the request
-is processed uncached — no hit, no write, no premium, and no error. It returns
-200 and caches nothing. On a typical coding-agent scenario the transcript does
-not cross the threshold until turn five.
+## Four findings this produced
+
+**Your cache does not exist for the first two turns.** Anthropic will not cache
+a prefix below a per-model minimum, and the thresholds are not monotonic: 512 on
+Opus 5, 1,024 on Opus 4.8 and Sonnet 5, 2,048 on Opus 4.7, 4,096 on Opus 4.6.
+Upgrading a model can silently change whether your prompt caches at all. Under
+the threshold the request is processed uncached — no hit, no write, no premium,
+and no error. It returns 200 and caches nothing.
 
 **Caching can lose money forever.** A cache entry expires on wall clock. If the
 gap between turns outlives the TTL, every turn pays the write premium and
@@ -96,8 +104,16 @@ looks like, not an edge case.
 
 **Thinking tokens dominate everything else.** Billed at the output rate, and
 measured traces show 2–8× more thinking than visible output. At the top of that
-range a run costs **6.31×** what a model ignoring it would report — larger than
+range a run costs **6.49×** what a model ignoring it would report — larger than
 the multi-turn curve itself.
+
+**Changing your tools zeroes the cache.** The prefix is ordered
+`tools → system → messages`, and editing the tools array invalidates all three.
+An agent that swaps tools per turn gets zero cache hits: on a 20-turn run with
+3,290 tokens of tools that is **3.07×** the frozen-tools cost, and **1.19×**
+what you would pay with caching switched off entirely. Turning the cache on
+makes it worse. Changing `tool_choice` instead invalidates only the messages, so
+declare the full set once and steer with that.
 
 ## Honest limits
 
@@ -113,8 +129,10 @@ the multi-turn curve itself.
   verified publishes them, and an invented threshold would silently change every
   short-prompt result while being indistinguishable from a correct one.
 - **Not modelled yet:** vision/audio tokens, server-side tool charges (web
-  search is billed per call), long-context pricing tiers, and cache
-  invalidation from changing tool definitions mid-run.
+  search is billed per call), long-context pricing tiers, and Anthropic's
+  20-block cache lookback window — a single-breakpoint agent exhausts it after
+  roughly ten turns and then misses on a prefix that is still byte-identical,
+  just out of range.
 
 ## Prices go stale — that is the point of the dates
 
@@ -129,7 +147,7 @@ without both will not be merged.
 ## Tests
 
 ```bash
-bun test    # 47 tests
+bun test    # 50 tests
 ```
 
 They assert behaviour, not implementation: that input rises every turn, that
