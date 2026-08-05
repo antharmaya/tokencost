@@ -33,9 +33,17 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./transcript": {
+      "types": "./dist/transcript.d.ts",
+      "import": "./dist/transcript.js"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -51,10 +59,14 @@
     }
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "gpt-tokenizer": "^3.4.0",
     "typescript": "^7.0.2"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "bin": {
+    "tokencost": "./dist/cli.js"
   }
 }

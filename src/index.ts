@@ -25,7 +25,7 @@ export type {
   TurnCost,
   CostBreakdown,
   CostComparison,
-} from "./types";
+} from './types.js';
 
 export {
   TOKENS_PER_MESSAGE,
@@ -36,7 +36,7 @@ export {
   computeCost,
   compareCaching,
   formatUsd,
-} from "./cost";
+} from './cost.js';
 
 export {
   estimateTokens,
@@ -46,6 +46,15 @@ export {
   inflatedTokenizer,
   tokenizerFor,
   type Encoding,
-} from "./tokenizer";
+} from './tokenizer.js';
 
-export { staticPricing, LAST_REVIEWED } from "./pricing";
+export { staticPricing, LAST_REVIEWED } from './pricing.js';
+
+export {
+  parseTranscript,
+  analyse,
+  type Transcript,
+  type TranscriptTurn,
+  type Finding,
+  type Confidence,
+} from './transcript.js';

@@ -115,6 +115,44 @@ what you would pay with caching switched off entirely. Turning the cache on
 makes it worse. Changing `tool_choice` instead invalidates only the messages, so
 declare the full set once and steer with that.
 
+## Audit a real run
+
+The webpage prices a hypothetical. The CLI reads what actually happened.
+
+```bash
+npx @antharmaya/tokencost run.jsonl
+cat session.json | npx @antharmaya/tokencost --json
+```
+
+```
+  5 turns · claude-opus-4-8
+  20,800 input · 3,000 output · 4,300 from cache
+  ~$0.1597 at Claude Opus 4.8 list prices
+  prices read 2026-08-04 · https://platform.claude.com/…/pricing
+
+  MEASURED — these are facts from your log
+  ✗ Tool definitions changed (turn 4)
+      Tools hash went 652e362d6015 → 2c1f8bdc041d. The cached prefix is
+      ordered tools → system → messages, so this invalidated all three…
+  ! Gap exceeded the cache TTL (turn 5)
+      730s between turn 4 and 5, past the 300s lifetime…
+  · Achieved cache hit rate: 20.7%
+```
+
+Findings are split into **measured** and **inferred**, and the split is load
+bearing. Anthropic and Bedrock report `cache_read_input_tokens`, so the hit rate
+there is a fact. OpenAI folds cache reads into `prompt_tokens`, so the same
+number would be a guess — and the CLI says so rather than printing one. A tool
+that shows a guess in the same typeface as a measurement is worse than one that
+stays quiet.
+
+Exits `1` when a measured critical finding is present, so it works in CI.
+
+Accepts JSONL or a JSON array; records may be raw provider requests or
+`{ request, response, timestamp }` wrappers. Tool arrays are compared on a
+canonicalised form, so a JSON serialiser reordering keys is reported as the
+serialisation bug it is rather than as a deliberate tool change.
+
 ## Honest limits
 
 - **Full transcript resend is an assumption, not a universal.** It is the
@@ -147,7 +185,7 @@ without both will not be merged.
 ## Tests
 
 ```bash
-bun test    # 50 tests
+bun test    # 60 tests
 ```
 
 They assert behaviour, not implementation: that input rises every turn, that

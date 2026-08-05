@@ -22,7 +22,7 @@ import type {
   Tokenizer,
   Turn,
   TurnCost,
-} from './types';
+} from './types.js';
 
 /**
  * ChatML structural overhead.

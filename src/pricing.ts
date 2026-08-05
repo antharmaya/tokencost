@@ -7,8 +7,10 @@
  * touching a single caller — that is what the seam is for.
  */
 
-import type { ModelPrice, PricingProvider } from './types';
-import table from './pricing.json';
+import type { ModelPrice, PricingProvider } from './types.js';
+// NodeNext requires an explicit import attribute for JSON, and the emitted
+// ESM is loaded by Node directly rather than by a bundler.
+import table from './pricing.json' with { type: 'json' };
 
 const models = table.models as unknown as ModelPrice[];
 

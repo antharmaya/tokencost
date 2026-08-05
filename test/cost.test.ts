@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'bun:test';
-import { compareCaching, computeCost, formatUsd, perToken } from '../src/cost';
+import { compareCaching, computeCost, formatUsd, perToken } from '../src/cost.js';
 import {
   conservativeTokenizer,
   estimateTokens,
   exactTokenizer,
   guardrailTokenizer,
   inflatedTokenizer,
-} from '../src/tokenizer';
-import { staticPricing } from '../src/pricing';
-import type { ModelPrice, Scenario } from '../src/types';
+} from '../src/tokenizer.js';
+import { staticPricing } from '../src/pricing.js';
+import type { ModelPrice, Scenario } from '../src/types.js';
 
 const opus = staticPricing.priceFor('claude-opus-4-8')!;
 const gpt = staticPricing.priceFor('gpt-5.5')!;

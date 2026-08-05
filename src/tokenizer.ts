@@ -16,7 +16,7 @@
  * over-counts is broken. Same number, opposite jobs.
  */
 
-import type { Tokenizer } from './types';
+import type { Tokenizer } from './types.js';
 
 // ---------------------------------------------------------------------------
 // RateGuard's estimator — ported unchanged so counts agree with the Go, Node
