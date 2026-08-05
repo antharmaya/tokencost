@@ -25,6 +25,7 @@ function scenario(over: Partial<Scenario> = {}): Scenario {
     reasoningTokensPerTurn: 0,
     toolDefinitionTokens: 0,
     cacheEnabled: false,
+    toolsChangeEachTurn: false,
     cacheTtl: '5m',
     secondsBetweenTurns: 5,
     batchEnabled: false,
@@ -148,7 +149,12 @@ describe('the minimum cacheable prefix', () => {
     // source verified on 2026-08-05, so they are left undefined rather than
     // guessed — an invented threshold would silently change every short-prompt
     // result, and being wrong here is indistinguishable from being right.
-    expect(staticPricing.priceFor('claude-opus-4-8')!.cacheMinimumTokens).toBe(2048);
+    // Read off Anthropic's own "Cache limitations" table on 2026-08-05. The
+    // thresholds are per-model and not monotonic — 1,024 on Opus 4.8, but 2,048
+    // on Opus 4.7 and 4,096 on Opus 4.6 — so an upgrade can silently change
+    // whether a prompt caches at all. Two research passes disagreed here; the
+    // vendor table settled it.
+    expect(staticPricing.priceFor('claude-opus-4-8')!.cacheMinimumTokens).toBe(1024);
     expect(staticPricing.priceFor('claude-sonnet-5')!.cacheMinimumTokens).toBe(1024);
     expect(staticPricing.priceFor('gpt-5.5')!.cacheMinimumTokens).toBe(1024);
   });
@@ -229,6 +235,35 @@ describe('tool definitions — resent every turn, modelled by nobody', () => {
     expect(r.totalInputTokens - bare.totalInputTokens).toBeGreaterThan(
       bare.totalInputTokens,
     );
+  });
+});
+
+describe('changing tool definitions destroys the whole prefix', () => {
+  test('a tools array that varies each turn yields zero cache hits', () => {
+    // Anthropic's invalidation table: modifying tool definitions invalidates
+    // the tools, system AND message caches. Prefix order is tools -> system ->
+    // messages, so volatility at the front wipes everything behind it.
+    const r = computeCost(
+      scenario({ turnCount: 20, cacheEnabled: true, toolsChangeEachTurn: true, toolDefinitionTokens: 3000 }),
+      opus,
+      guardrailTokenizer,
+    );
+    expect(r.perTurn.slice(1).every((t) => t.toolsInvalidated)).toBe(true);
+    expect(r.perTurn.every((t) => t.cachedInputTokens === 0)).toBe(true);
+  });
+
+  test('so caching a dynamic-tool agent costs MORE than not caching', () => {
+    const opts = { turnCount: 20, toolsChangeEachTurn: true, toolDefinitionTokens: 3000 };
+    const cached = computeCost(scenario({ ...opts, cacheEnabled: true }), opus, guardrailTokenizer);
+    const plain = computeCost(scenario({ ...opts, cacheEnabled: false }), opus, guardrailTokenizer);
+    expect(cached.totalCostUsd).toBeGreaterThan(plain.totalCostUsd);
+  });
+
+  test('freezing the tools array restores the saving', () => {
+    const opts = { turnCount: 20, cacheEnabled: true, toolDefinitionTokens: 3000 };
+    const varying = computeCost(scenario({ ...opts, toolsChangeEachTurn: true }), opus, guardrailTokenizer);
+    const frozen = computeCost(scenario({ ...opts, toolsChangeEachTurn: false }), opus, guardrailTokenizer);
+    expect(frozen.totalCostUsd).toBeLessThan(varying.totalCostUsd);
   });
 });
 

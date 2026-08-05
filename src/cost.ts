@@ -41,6 +41,18 @@ export const TOKENS_PRIMING_REPLY = 2;
 /** Cache lifetimes, in seconds, as the providers sell them. */
 export const CACHE_TTL_SECONDS = { '5m': 300, '1h': 3600 } as const;
 
+/**
+ * How far back the provider searches for a matching prefix, in blocks.
+ *
+ * Anthropic checks at most 20 positions per breakpoint, counting the breakpoint
+ * itself as the first. A long conversation whose breakpoint has advanced more
+ * than 20 blocks past the last write misses entirely — the prefix is still
+ * byte-identical, it is simply out of range. Each turn adds two blocks (the
+ * assistant reply and the next user message), so a single-breakpoint agent
+ * exhausts the window after roughly ten turns unless every turn writes.
+ */
+export const CACHE_LOOKBACK_BLOCKS = 20;
+
 /** Normalise any published unit to a flat per-token USD rate. */
 export function perToken(rate: Rate): number {
   switch (rate.unit) {
@@ -126,8 +138,14 @@ export function computeCost(
       price.cacheMinimumTokens !== undefined &&
       inputTokens < price.cacheMinimumTokens;
 
+    // Changing the tools array invalidates tools, system and messages — the
+    // whole hierarchy — so nothing survives to be read.
+    const toolsInvalidated =
+      scenario.cacheEnabled && i > 0 && scenario.toolsChangeEachTurn;
+
     const expired = scenario.cacheEnabled && i > 0 && !cacheSurvivesGap;
-    const usablePrefix = expired || tooShortToCache ? 0 : cachedPrefix;
+    const usablePrefix =
+      expired || tooShortToCache || toolsInvalidated ? 0 : cachedPrefix;
     const cached = scenario.cacheEnabled ? Math.min(usablePrefix, inputTokens) : 0;
     const fresh = inputTokens - cached;
 
@@ -147,6 +165,7 @@ export function computeCost(
       index: i,
       cacheExpired: expired,
       belowCacheMinimum: tooShortToCache,
+      toolsInvalidated,
       inputTokens,
       cachedInputTokens: cached,
       freshInputTokens: fresh,

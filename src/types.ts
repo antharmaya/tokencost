@@ -66,6 +66,22 @@ export interface Scenario {
   cacheEnabled: boolean;
 
   /**
+   * Whether the tool definitions change between turns.
+   *
+   * Confirmed against Anthropic's own invalidation table: the cached prefix is
+   * ordered tools -> system -> messages, and modifying tool definitions
+   * invalidates ALL THREE levels. An agent that injects tools per turn to
+   * narrow what the model can reach therefore gets zero cache hits — every turn
+   * pays a full write and reads nothing back.
+   *
+   * Note this is specifically the tools ARRAY. Changing `tool_choice` instead
+   * invalidates only the message blocks and leaves tools and system cached,
+   * which is why the documented mitigation is to declare the full superset
+   * once and steer with tool_choice.
+   */
+  toolsChangeEachTurn: boolean;
+
+  /**
    * Which cache lifetime is purchased, where the provider sells more than one.
    * Anthropic charges 1.25x input to write a 5-minute entry and 2x for an hour.
    */
@@ -224,6 +240,8 @@ export interface TurnCost {
   cacheExpired: boolean;
   /** True when the prompt was shorter than the provider will cache at all. */
   belowCacheMinimum: boolean;
+  /** True when a changed tools array wiped the whole prefix this turn. */
+  toolsInvalidated: boolean;
   /** Full input as the provider sees it: transcript so far + ChatML overhead. */
   inputTokens: number;
   /** Portion served from the prompt cache. */
