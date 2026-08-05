@@ -1,0 +1,60 @@
+{
+  "name": "@antharmaya/tokencost",
+  "version": "0.1.0",
+  "description": "Price a whole LLM agent run, not one request. Models context regrowth across turns, prompt-cache write premiums and TTL expiry, the minimum cacheable prefix, tool-definition overhead and thinking tokens.",
+  "license": "MIT",
+  "author": "Harsha Beesabathina <hello@antharmaya.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antharmaya/tokencost.git"
+  },
+  "homepage": "https://antharmaya.com/tools/token-cost",
+  "bugs": {
+    "url": "https://github.com/antharmaya/tokencost/issues"
+  },
+  "keywords": [
+    "llm",
+    "tokens",
+    "tokenizer",
+    "cost",
+    "pricing",
+    "openai",
+    "anthropic",
+    "claude",
+    "gemini",
+    "prompt-caching",
+    "agents",
+    "finops"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "bun test",
+    "prepublishOnly": "bun test && bun run build"
+  },
+  "peerDependencies": {
+    "gpt-tokenizer": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "gpt-tokenizer": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "gpt-tokenizer": "^3.4.0",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
