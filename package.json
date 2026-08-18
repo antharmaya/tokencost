@@ -67,6 +67,6 @@
     "access": "public"
   },
   "bin": {
-    "tokencost": "./dist/cli.js"
+    "tokencost": "dist/cli.js"
   }
 }
