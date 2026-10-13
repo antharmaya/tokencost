@@ -167,8 +167,9 @@ export interface ModelPrice {
    * Smallest prefix the provider will cache at all.
    *
    * Below this the request is processed uncached — silently, with no error and
-   * no cache-write charge. Anthropic documents 1,024 tokens for Sonnet 4.x and
-   * 2,048 for Opus 4.7+ on the direct API. Modelling a write premium on a
+   * no cache-write charge. The value is per model and not monotonic: Anthropic
+   * documents 512 tokens for the Claude 5.5 family, 1,024 for Opus 4.8 and
+   * Sonnet 5, 2,048 for Opus 4.7 and 4,096 for Opus 4.6. Modelling a write premium on a
    * prompt too short to be cached invents a cost that is never billed, which is
    * the same class of error as ignoring one that is.
    */
