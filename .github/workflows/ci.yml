@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      - run: bun run build
+      # The README promises that its snippet and CLI sample print exactly what
+      # it says. Run the CLI on the example the README quotes, so that promise
+      # is checked instead of trusted. Exit 1 is the expected result: the
+      # example contains a measured critical finding.
+      - name: The CLI runs on the documented example
+        run: |
+          node dist/cli.js examples/run.jsonl --json > out.json || [ $? -eq 1 ]
+          node -e "const o=require('./out.json'); if(o.turns!==5||o.totals.inputTokens!==22370) { console.error(o.totals); process.exit(1) }"
