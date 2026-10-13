@@ -12,9 +12,9 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { analyse, parseTranscript, type Finding } from './transcript.js';
+import { analyse, billedUsd, parseTranscript, type Finding } from './transcript.js';
 import { staticPricing } from './pricing.js';
-import { perToken, formatUsd, CACHE_TTL_SECONDS } from './cost.js';
+import { formatUsd, CACHE_TTL_SECONDS } from './cost.js';
 
 const C = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
@@ -76,19 +76,20 @@ entirely on your machine.`);
 
   const findings = analyse(t, {
     cacheMinimumTokens: price?.cacheMinimumTokens,
-    ttlSeconds: CACHE_TTL_SECONDS['5m'],
+    ttlSeconds: price?.cacheLifetimeSeconds ?? CACHE_TTL_SECONDS['5m'],
   });
 
   // Actual spend, where the log reports enough to compute it.
   const input = t.turns.reduce((a, x) => a + (x.inputTokens ?? 0), 0);
   const output = t.turns.reduce((a, x) => a + (x.outputTokens ?? 0), 0);
   const cacheRead = t.turns.reduce((a, x) => a + (x.cacheReadTokens ?? 0), 0);
-  const billed =
-    price && input
-      ? (input - cacheRead) * perToken(price.input) +
-        cacheRead * perToken(price.cacheRead ?? price.input) +
-        output * perToken(price.output)
-      : undefined;
+  const cacheWrite = t.turns.reduce((a, x) => a + (x.cacheWriteTokens ?? 0), 0);
+  const billed = price ? billedUsd(t, price) : undefined;
+  // A vendor announced new rates from this date. The bundled ones are unchecked
+  // past it, and saying so beats printing a confident number that may be stale.
+  const today = new Date().toISOString().slice(0, 10);
+  const pastChangeDate =
+    price?.priceChangesOn !== undefined && today >= price.priceChangesOn;
 
   if (asJson) {
     console.log(
@@ -97,9 +98,21 @@ entirely on your machine.`);
           format: t.format,
           cacheTokensReported: t.cacheTokensReported,
           turns: t.turns.length,
-          totals: { inputTokens: input, outputTokens: output, cacheReadTokens: cacheRead },
+          totals: {
+            inputTokens: input,
+            outputTokens: output,
+            cacheReadTokens: cacheRead,
+            cacheWriteTokens: cacheWrite,
+          },
           model: price
-            ? { id: price.id, source: price.sourceUrl, seenAt: price.seenAt }
+            ? {
+                id: price.id,
+                source: price.sourceUrl,
+                seenAt: price.seenAt,
+                ...(price.priceChangesOn
+                  ? { priceChangesOn: price.priceChangesOn, pastChangeDate }
+                  : {}),
+              }
             : { id: modelId ?? null, note: 'not in the bundled price table' },
           estimatedCostUsd: billed ?? null,
           findings,
@@ -122,6 +135,14 @@ entirely on your machine.`);
   if (billed !== undefined) {
     console.log(C.dim(`  ~${formatUsd(billed)} at ${price!.displayName} list prices`));
     console.log(C.dim(`  prices read ${price!.seenAt} · ${price!.sourceUrl}`));
+    if (pastChangeDate) {
+      console.log(
+        C.yellow(
+          `  ! the vendor announced new rates for this model from ${price!.priceChangesOn}; ` +
+            'this figure uses the earlier ones',
+        ),
+      );
+    }
   } else if (modelId && !price) {
     console.log(
       C.dim(`  no bundled price for "${modelId}" — token counts only, no cost`),

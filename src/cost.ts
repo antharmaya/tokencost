@@ -63,6 +63,46 @@ export function perToken(rate: Rate): number {
   }
 }
 
+/** Per-token USD rates that apply to one request. */
+export interface TokenRates {
+  input: number;
+  output: number;
+  /** Equal to `input` when the provider publishes no cache-read price. */
+  cacheRead: number;
+  /** Write rate for the short lifetime; undefined when writes carry no premium. */
+  cacheWrite?: number;
+  /** Write rate for the longer lifetime, where one is sold. */
+  cacheWriteLong?: number;
+  /** True when these are the long-context rates. */
+  longContext: boolean;
+}
+
+/**
+ * The rates a request of `promptTokens` is billed at.
+ *
+ * `promptTokens` is the whole prompt, cache reads and writes included: that is
+ * how the vendors measure the threshold, and a request over it pays the higher
+ * rates on every token, cached or not.
+ */
+export function ratesFor(price: ModelPrice, promptTokens: number): TokenRates {
+  const tier =
+    price.longContext && promptTokens > price.longContext.aboveTokens
+      ? price.longContext
+      : undefined;
+  const input = perToken((tier ?? price).input);
+  const read = tier?.cacheRead ?? (tier ? undefined : price.cacheRead);
+  const write = tier ? tier.cacheWrite : price.cacheWrite;
+  const writeLong = tier ? tier.cacheWriteLong : price.cacheWriteLong;
+  return {
+    input,
+    output: perToken((tier ?? price).output),
+    cacheRead: read ? perToken(read) : input,
+    cacheWrite: write ? perToken(write) : undefined,
+    cacheWriteLong: writeLong ? perToken(writeLong) : undefined,
+    longContext: tier !== undefined,
+  };
+}
+
 /** Tokens for one message, including its ChatML wrapper. */
 export function countTurn(turn: Turn, tokenizer: Tokenizer): number {
   return tokenizer.estimateTokens(turn.content) + TOKENS_PER_MESSAGE;
@@ -81,11 +121,6 @@ export function computeCost(
   price: ModelPrice,
   tokenizer: Tokenizer,
 ): CostBreakdown {
-  const inputRate = perToken(price.input);
-  const outputRate = perToken(price.output);
-  const readRate = price.cacheRead ? perToken(price.cacheRead) : inputRate;
-  const writeRate = price.cacheWrite ? perToken(price.cacheWrite) : inputRate;
-
   const seed = scenario.turns.map((t) => ({ turn: t, tokens: countTurn(t, tokenizer) }));
   const seedTokens = seed.reduce((sum, s) => sum + s.tokens, 0);
   const seedMessages = seed.length;
@@ -114,19 +149,32 @@ export function computeCost(
   // slow agent can pay the write premium on every turn and never collect a
   // single read. This is the case where caching costs strictly more than not
   // caching, and it is invisible in every calculator that ignores wall clock.
-  const ttlSeconds = CACHE_TTL_SECONDS[scenario.cacheTtl];
+  // A provider that sells one lifetime overrides the scenario's choice: there
+  // is no 5-minute cache to buy on a model whose entries live 30 minutes.
+  const ttlSeconds =
+    price.cacheLifetimeSeconds ?? CACHE_TTL_SECONDS[scenario.cacheTtl];
   const cacheSurvivesGap = scenario.secondsBetweenTurns <= ttlSeconds;
-
-  // Anthropic sells the longer lifetime at a higher write rate. Buying an hour
-  // of cache you do not use is pure loss, which is why the TTL is an input
-  // rather than an assumption.
-  const writeRateForTtl =
-    scenario.cacheTtl === '1h' && price.cacheWriteLong
-      ? perToken(price.cacheWriteLong)
-      : writeRate;
 
   for (let i = 0; i < scenario.turnCount; i++) {
     const inputTokens = transcriptTokens + TOKENS_PRIMING_REPLY;
+
+    // Rates are picked per request, because a growing transcript can cross a
+    // long-context threshold part-way through a run and every later turn then
+    // pays the higher rates on its whole prompt.
+    const rates = ratesFor(price, inputTokens);
+    const inputRate = rates.input;
+    const outputRate = rates.output;
+    const readRate = rates.cacheRead;
+
+    // Anthropic sells the longer lifetime at a higher write rate. Buying an
+    // hour of cache you do not use is pure loss, which is why the TTL is an
+    // input rather than an assumption.
+    const writeRateForTtl =
+      scenario.cacheTtl === '1h' &&
+      price.cacheLifetimeSeconds === undefined &&
+      rates.cacheWriteLong !== undefined
+        ? rates.cacheWriteLong
+        : (rates.cacheWrite ?? inputRate);
 
     // Anything already in the cache AND still alive is billed at the read rate;
     // the rest is fresh. Without caching every token is fresh, every single
@@ -152,7 +200,12 @@ export function computeCost(
     let cost = cached * readRate + fresh * inputRate;
 
     // Writing the fresh portion into the cache costs a premium, once per write.
-    if (scenario.cacheEnabled && price.cacheWrite && fresh > 0 && !tooShortToCache) {
+    if (
+      scenario.cacheEnabled &&
+      rates.cacheWrite !== undefined &&
+      fresh > 0 &&
+      !tooShortToCache
+    ) {
       cost += fresh * (writeRateForTtl - inputRate);
     }
 
@@ -166,6 +219,7 @@ export function computeCost(
       cacheExpired: expired,
       belowCacheMinimum: tooShortToCache,
       toolsInvalidated,
+      longContext: rates.longContext,
       inputTokens,
       cachedInputTokens: cached,
       freshInputTokens: fresh,

@@ -157,3 +157,32 @@ export async function tokenizerFor(encoding?: Encoding): Promise<Tokenizer> {
     return guardrailTokenizer;
   }
 }
+
+/**
+ * The tokenizer to count a given model with — the whole policy in one call.
+ *
+ * A model marked `exact` gets its vendor's own vocabulary and nothing else.
+ * Every other model has no ground truth, so it gets the higher of two credible
+ * counts (the guardrail estimate and the nearest public BPE), then the vendor's
+ * documented correction on top where there is one. Passing a bare
+ * `guardrailTokenizer` for a Claude model skips that correction and reads about
+ * a third under the invoice, which is why this exists: the policy belongs in
+ * the package, not re-assembled by every caller.
+ */
+export async function tokenizerForModel(price: {
+  encoding?: Encoding;
+  countAccuracy?: 'exact' | 'approximate';
+  tokenizerInflation?: number;
+}): Promise<Tokenizer> {
+  if (price.countAccuracy === 'exact' && price.encoding) {
+    return tokenizerFor(price.encoding);
+  }
+  const neighbour = await tokenizerFor(price.encoding ?? 'o200k_base');
+  const best =
+    neighbour === guardrailTokenizer
+      ? guardrailTokenizer
+      : conservativeTokenizer(guardrailTokenizer, neighbour);
+  return price.tokenizerInflation
+    ? inflatedTokenizer(best, price.tokenizerInflation)
+    : best;
+}

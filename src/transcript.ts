@@ -15,6 +15,8 @@
  */
 
 import { createHash } from 'node:crypto';
+import { ratesFor } from './cost.js';
+import type { ModelPrice } from './types.js';
 
 /** A single request/response pair pulled out of whatever the log looked like. */
 export interface TranscriptTurn {
@@ -28,6 +30,11 @@ export interface TranscriptTurn {
   hasImage: boolean;
   /** Serialised thinking/effort configuration, if present. */
   thinkingRaw?: string;
+  /**
+   * The WHOLE prompt the provider processed: fresh tokens plus cache reads plus
+   * cache writes. Providers disagree on what their own `input_tokens` means —
+   * see `parseTranscript` — so it is normalised here once.
+   */
   inputTokens?: number;
   outputTokens?: number;
   /** Present only where the provider reports it. Absent is not zero. */
@@ -82,15 +89,43 @@ export function parseTranscript(raw: string): Transcript {
       rec.usage ??
       {}) as Record<string, number>;
 
-    const read = usage.cache_read_input_tokens ?? usage.cacheReadInputTokens;
-    const write = usage.cache_creation_input_tokens ?? usage.cacheWriteInputTokens;
-    if (read !== undefined || write !== undefined) {
-      cacheTokensReported = true;
+    // The two families report the same three quantities in opposite shapes.
+    //
+    // Anthropic (and Bedrock) split the prompt into three counters that do not
+    // overlap: `input_tokens` is only what was neither read from nor written to
+    // the cache, and the prompt is the sum of all three. Treating that field as
+    // the whole prompt, which this parser did before 0.1.0, inflates the hit
+    // rate (reads over a denominator that excludes them) and bills cache
+    // writes at nothing.
+    //
+    // OpenAI reports the total as `input_tokens` / `prompt_tokens` and breaks
+    // the cached part out underneath it in `*_tokens_details`.
+    const partRead = usage.cache_read_input_tokens ?? usage.cacheReadInputTokens;
+    const partWrite = usage.cache_creation_input_tokens ?? usage.cacheWriteInputTokens;
+    const splitCounters = partRead !== undefined || partWrite !== undefined;
+    const details = ((usage as Record<string, unknown>).input_tokens_details ??
+      (usage as Record<string, unknown>).prompt_tokens_details) as
+      | Record<string, number>
+      | undefined;
+
+    const read = partRead ?? details?.cached_tokens;
+    const write = partWrite ?? details?.cache_write_tokens;
+    if (read !== undefined || write !== undefined) cacheTokensReported = true;
+    if (splitCounters) {
       format = 'anthropic';
-    } else if (usage.prompt_tokens !== undefined) {
-      // OpenAI reports inclusively; cache reads are not separable.
+    } else if (usage.prompt_tokens !== undefined || details !== undefined) {
       format = format === 'anthropic' ? format : 'openai';
     }
+
+    const reportedInput = (usage.input_tokens ??
+      usage.prompt_tokens ??
+      usage.inputTokens) as number | undefined;
+    const inputTokens =
+      reportedInput === undefined
+        ? undefined
+        : splitCounters
+          ? reportedInput + (partRead ?? 0) + (partWrite ?? 0)
+          : reportedInput;
 
     return {
       index,
@@ -105,10 +140,7 @@ export function parseTranscript(raw: string): Transcript {
               effort: req.reasoning_effort ?? req.effort,
             })
           : undefined,
-      inputTokens:
-        (usage.input_tokens ?? usage.prompt_tokens ?? usage.inputTokens) as
-          | number
-          | undefined,
+      inputTokens,
       outputTokens:
         (usage.output_tokens ?? usage.completion_tokens ?? usage.outputTokens) as
           | number
@@ -285,8 +317,9 @@ export function analyse(
       title: 'Cache hit rate is not measurable from this log',
       detail:
         t.format === 'openai'
-          ? 'OpenAI folds cache reads into prompt_tokens, so they cannot be separated. ' +
-            'Any hit rate quoted for this log would be a guess.'
+          ? 'This log carries prompt totals but no cached-token details ' +
+            '(prompt_tokens_details or input_tokens_details), so cache reads cannot be ' +
+            'separated from the rest. Any hit rate quoted for it would be a guess.'
           : 'No cache token fields present. Absent is not the same as zero.',
     });
   }
@@ -308,3 +341,31 @@ export function analyse(
 }
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+
+/**
+ * What the run cost at list prices, from the token counts the log reports.
+ *
+ * Priced request by request, because the long-context rates apply to a whole
+ * request once its prompt crosses the line. Cache writes are billed at the
+ * short-lifetime write rate: a log does not reliably say which lifetime was
+ * bought, and the short one is the default everywhere. Returns undefined when
+ * the log reports no input counts at all, which is not the same as zero cost.
+ */
+export function billedUsd(t: Transcript, price: ModelPrice): number | undefined {
+  if (!t.turns.some((x) => x.inputTokens)) return undefined;
+  return sum(
+    t.turns.map((x) => {
+      const prompt = x.inputTokens ?? 0;
+      const rates = ratesFor(price, prompt);
+      const read = x.cacheReadTokens ?? 0;
+      const write = x.cacheWriteTokens ?? 0;
+      const fresh = Math.max(0, prompt - read - write);
+      return (
+        fresh * rates.input +
+        read * rates.cacheRead +
+        write * (rates.cacheWrite ?? rates.input) +
+        (x.outputTokens ?? 0) * rates.output
+      );
+    }),
+  );
+}

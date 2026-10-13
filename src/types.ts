@@ -1,8 +1,7 @@
 /**
  * Token & cost calculator — core types.
  *
- * Two of these encode one-way architectural doors (see
- * _cofounder/life/token-calculator-architecture.md):
+ * Two of these encode one-way architectural doors:
  *
  *  1. The unit of computation is a CONVERSATION, not a string. Every public
  *     surface takes `Turn[]`. A textarea-in / integer-out shape would make
@@ -11,12 +10,13 @@
  *
  *  2. Every price carries its provenance. `sourceUrl` and `seenAt` are
  *     required, not optional, because retrofitting them means re-verifying
- *     every record — and because vendor prices do NOT only move downward
- *     (Anthropic Sonnet 5 rises 2026-09-01; Bedrock Priority is a premium
- *     tier). A price without a date cannot be trusted in either direction.
+ *     every record — and because vendor prices do NOT only move downward,
+ *     and announced changes get cancelled (Anthropic scheduled a Sonnet 5
+ *     rise for 2026-09-01 and then withdrew it). A price without a date
+ *     cannot be trusted in either direction.
  *
  * The `Tokenizer` and `PricingProvider` interfaces mirror RateGuard's
- * (02-fast-cash/rateguard, core/tokenizer.ts and core/genai.ts) so an exact
+ * (core/tokenizer.ts and core/genai.ts in @varbees/rateguard-node) so an exact
  * tokenizer or a live price feed can be swapped in without touching callers.
  */
 
@@ -118,6 +118,27 @@ export interface Rate {
   unit: PriceUnit;
 }
 
+/**
+ * Rates for a request whose prompt is longer than `aboveTokens`.
+ *
+ * Several vendors charge more for a long prompt, and the higher rate applies to
+ * the WHOLE request, not just the tokens past the line: Anthropic's Claude
+ * Haiku 5.5 pays 5x above 100,000 prompt tokens, OpenAI's GPT-5.5 and GPT-6
+ * family pay about 2x above 272K. An agent crosses that line by getting older,
+ * not by doing anything different, so a table with one flat rate under-states
+ * exactly the long runs that cost the most. A cache rate left out means the
+ * provider publishes none at this tier; those tokens are billed at the tier's
+ * input rate.
+ */
+export interface LongContextPrice {
+  aboveTokens: number;
+  input: Rate;
+  output: Rate;
+  cacheWrite?: Rate;
+  cacheWriteLong?: Rate;
+  cacheRead?: Rate;
+}
+
 export interface ModelPrice {
   id: string;
   displayName: string;
@@ -153,6 +174,21 @@ export interface ModelPrice {
    */
   cacheMinimumTokens?: number;
 
+  /**
+   * How long a cached prefix lives, in seconds, where the provider sells one
+   * lifetime rather than a choice.
+   *
+   * OpenAI's GPT-5.6 and later keep an entry at least 30 minutes after its last
+   * write or reuse. Anthropic sells 5 minutes or 1 hour, which is what
+   * `Scenario.cacheTtl` picks between. When this is set it wins, because asking
+   * for a 5-minute cache on a model that has no such thing would invent
+   * expiries that never happen.
+   */
+  cacheLifetimeSeconds?: number;
+
+  /** Higher rates for long prompts, where the provider has them. */
+  longContext?: LongContextPrice;
+
   /** Multiplier applied to the whole bill in batch mode. 0.5 = 50% off. */
   batchMultiplier?: number;
 
@@ -186,6 +222,14 @@ export interface ModelPrice {
   /** Provenance. Both required — see the file header. */
   sourceUrl: string;
   seenAt: string; // ISO date, the day a human read the vendor page
+
+  /**
+   * ISO date from which the vendor has announced different rates for this
+   * model (launch pricing ending, a scheduled rise). The rates here are right
+   * until that day and unverified from it. Announced changes are sometimes
+   * withdrawn, so this is a prompt to re-read the page, not a second price.
+   */
+  priceChangesOn?: string;
 
   /**
    * Set when the token count is approximate rather than exact — i.e. the
@@ -242,6 +286,8 @@ export interface TurnCost {
   belowCacheMinimum: boolean;
   /** True when a changed tools array wiped the whole prefix this turn. */
   toolsInvalidated: boolean;
+  /** True when the prompt was long enough to be billed at long-context rates. */
+  longContext: boolean;
   /** Full input as the provider sees it: transcript so far + ChatML overhead. */
   inputTokens: number;
   /** Portion served from the prompt cache. */

@@ -20,6 +20,7 @@ export type {
   PriceUnit,
   Rate,
   ModelPrice,
+  LongContextPrice,
   PricingProvider,
   Tokenizer,
   TurnCost,
@@ -32,6 +33,8 @@ export {
   TOKENS_PRIMING_REPLY,
   CACHE_TTL_SECONDS,
   perToken,
+  ratesFor,
+  type TokenRates,
   countTurn,
   computeCost,
   compareCaching,
@@ -45,6 +48,7 @@ export {
   conservativeTokenizer,
   inflatedTokenizer,
   tokenizerFor,
+  tokenizerForModel,
   type Encoding,
 } from './tokenizer.js';
 
@@ -53,6 +57,7 @@ export { staticPricing, LAST_REVIEWED } from './pricing.js';
 export {
   parseTranscript,
   analyse,
+  billedUsd,
   type Transcript,
   type TranscriptTurn,
   type Finding,

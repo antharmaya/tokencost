@@ -1,31 +1,419 @@
 {
-  "$comment": "Hand-verified against vendor pricing pages. Every record carries sourceUrl and seenAt. Prices do NOT only move downward \u2014 Anthropic Sonnet 5 rises on 2026-09-01 \u2014 so a stale table is wrong in both directions. tokenizerInflation captures documented tokenizer changes: Claude 4.7+ emits ~30% more tokens for the same text than earlier Claude models, so counting them with a near-neighbour BPE alone under-counts the bill.",
-  "lastReviewed": "2026-08-04",
+  "$comment": "Read off the vendor pricing pages by a person. Every record carries sourceUrl and seenAt. Prices move in both directions and announced changes get cancelled (Anthropic's Sonnet 5 rise never happened), so a stale table can be wrong either way. priceChangesOn marks a row whose vendor has announced new rates from that date. tokenizerInflation records a documented tokenizer change: Claude Opus 4.7 and later produce about 30% more tokens for the same text than earlier Claude models.",
+  "lastReviewed": "2026-10-13",
   "models": [
     {
-      "id": "gpt-5.5",
-      "displayName": "GPT-5.5",
-      "provider": "OpenAI",
+      "id": "claude-fable-5-1",
+      "displayName": "Claude Fable 5.1",
+      "provider": "Anthropic",
       "input": {
-        "value": 5.0,
+        "value": 10,
         "unit": "per_1m_tokens"
       },
       "output": {
-        "value": 30.0,
+        "value": 50,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWrite": {
+        "value": 12.5,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWriteLong": {
+        "value": 20,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 0.25,
+        "unit": "per_1m_tokens"
+      },
+      "contextWindow": 1000000,
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "seenAt": "2026-10-13",
+      "cacheMinimumTokens": 512,
+      "batchMultiplier": 0.5,
+      "countAccuracy": "approximate",
+      "tokenizerInflation": 1.3,
+      "note": "Cache read is 0.025x input on this model, not the usual 0.1x. Cache write is 1.25x input for 5 minutes and 2x for 1 hour. Anthropic's table lists no tool-use system prompt size for this model, so none is added. Counted with a near-neighbour BPE inflated by 1.3: Anthropic publishes no offline tokenizer, and models from Claude Opus 4.7 on use a tokenizer that produces about 30% more tokens for the same text."
+    },
+    {
+      "id": "claude-opus-5-5",
+      "displayName": "Claude Opus 5.5",
+      "provider": "Anthropic",
+      "input": {
+        "value": 4,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 20,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWrite": {
+        "value": 5,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWriteLong": {
+        "value": 8,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 0.2,
+        "unit": "per_1m_tokens"
+      },
+      "contextWindow": 1000000,
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "seenAt": "2026-10-13",
+      "cacheMinimumTokens": 512,
+      "toolSystemPromptTokens": 286,
+      "batchMultiplier": 0.5,
+      "countAccuracy": "approximate",
+      "tokenizerInflation": 1.3,
+      "note": "Cache read is 0.05x input on this model, not the usual 0.1x. Cache write is 1.25x input for 5 minutes and 2x for 1 hour. Enabling any tool adds a 286-token tool-use system prompt. Fast mode ($8/$40) is not modelled. Counted with a near-neighbour BPE inflated by 1.3: Anthropic publishes no offline tokenizer, and models from Claude Opus 4.7 on use a tokenizer that produces about 30% more tokens for the same text."
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "displayName": "Claude Sonnet 5.5",
+      "provider": "Anthropic",
+      "input": {
+        "value": 2,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 10,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWrite": {
+        "value": 2.5,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWriteLong": {
+        "value": 4,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 0.1,
+        "unit": "per_1m_tokens"
+      },
+      "contextWindow": 1000000,
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "seenAt": "2026-10-13",
+      "cacheMinimumTokens": 512,
+      "toolSystemPromptTokens": 286,
+      "batchMultiplier": 0.5,
+      "countAccuracy": "approximate",
+      "tokenizerInflation": 1.3,
+      "note": "Cache read is 0.05x input on this model, not the usual 0.1x. Cache write is 1.25x input for 5 minutes and 2x for 1 hour. Enabling any tool adds a 286-token tool-use system prompt. Counted with a near-neighbour BPE inflated by 1.3: Anthropic publishes no offline tokenizer, and models from Claude Opus 4.7 on use a tokenizer that produces about 30% more tokens for the same text."
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "displayName": "Claude Haiku 5.5",
+      "provider": "Anthropic",
+      "input": {
+        "value": 0.1,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 0.5,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWrite": {
+        "value": 0.125,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWriteLong": {
+        "value": 0.2,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 0.01,
+        "unit": "per_1m_tokens"
+      },
+      "longContext": {
+        "aboveTokens": 100000,
+        "input": {
+          "value": 0.5,
+          "unit": "per_1m_tokens"
+        },
+        "output": {
+          "value": 2.5,
+          "unit": "per_1m_tokens"
+        },
+        "cacheWrite": {
+          "value": 0.625,
+          "unit": "per_1m_tokens"
+        },
+        "cacheWriteLong": {
+          "value": 1.0,
+          "unit": "per_1m_tokens"
+        },
+        "cacheRead": {
+          "value": 0.05,
+          "unit": "per_1m_tokens"
+        }
+      },
+      "contextWindow": 1000000,
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "seenAt": "2026-10-13",
+      "cacheMinimumTokens": 512,
+      "toolSystemPromptTokens": 286,
+      "batchMultiplier": 0.5,
+      "countAccuracy": "approximate",
+      "tokenizerInflation": 1.3,
+      "note": "Priced by prompt length: a request whose prompt is over 100,000 tokens pays 5x on every rate, and the prompt length counts cache reads and writes. Enabling any tool adds a 286-token tool-use system prompt (406 with tool_choice any/tool). Counted with a near-neighbour BPE inflated by 1.3: Anthropic publishes no offline tokenizer, and models from Claude Opus 4.7 on use a tokenizer that produces about 30% more tokens for the same text."
+    },
+    {
+      "id": "claude-opus-4-8",
+      "displayName": "Claude Opus 4.8",
+      "provider": "Anthropic",
+      "input": {
+        "value": 5,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 25,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWrite": {
+        "value": 6.25,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWriteLong": {
+        "value": 10,
         "unit": "per_1m_tokens"
       },
       "cacheRead": {
         "value": 0.5,
         "unit": "per_1m_tokens"
       },
+      "contextWindow": 1000000,
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "seenAt": "2026-10-13",
+      "cacheMinimumTokens": 1024,
+      "toolSystemPromptTokens": 290,
+      "batchMultiplier": 0.5,
+      "countAccuracy": "approximate",
+      "tokenizerInflation": 1.3,
+      "note": "Legacy model, still available. Cache write is 1.25x input for 5 minutes and 2x for 1 hour; cache read is 0.1x. Enabling any tool adds a 290-token tool-use system prompt (410 with tool_choice any/tool). Minimum cacheable prefix is 1,024 tokens (2,048 is Opus 4.7, not 4.8). Counted with a near-neighbour BPE inflated by 1.3: Anthropic publishes no offline tokenizer, and models from Claude Opus 4.7 on use a tokenizer that produces about 30% more tokens for the same text."
+    },
+    {
+      "id": "claude-sonnet-5",
+      "displayName": "Claude Sonnet 5",
+      "provider": "Anthropic",
+      "input": {
+        "value": 2,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 10,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWrite": {
+        "value": 2.5,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWriteLong": {
+        "value": 4,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 0.2,
+        "unit": "per_1m_tokens"
+      },
+      "contextWindow": 1000000,
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "seenAt": "2026-10-13",
+      "cacheMinimumTokens": 1024,
+      "toolSystemPromptTokens": 354,
+      "batchMultiplier": 0.5,
+      "countAccuracy": "approximate",
+      "tokenizerInflation": 1.3,
+      "note": "Legacy model, still available. $2/$10 was announced as introductory pricing through 2026-08-31; Anthropic then made it the standard price and cancelled the scheduled rise to $3/$15. Enabling any tool adds a 354-token tool-use system prompt (474 with tool_choice any/tool). Counted with a near-neighbour BPE inflated by 1.3: Anthropic publishes no offline tokenizer, and models from Claude Opus 4.7 on use a tokenizer that produces about 30% more tokens for the same text."
+    },
+    {
+      "id": "gpt-6-astra",
+      "displayName": "GPT-6 Astra",
+      "provider": "OpenAI",
+      "input": {
+        "value": 10,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 50,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWrite": {
+        "value": 12.5,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 1.0,
+        "unit": "per_1m_tokens"
+      },
+      "longContext": {
+        "aboveTokens": 272000,
+        "input": {
+          "value": 20,
+          "unit": "per_1m_tokens"
+        },
+        "output": {
+          "value": 75,
+          "unit": "per_1m_tokens"
+        },
+        "cacheWrite": {
+          "value": 25,
+          "unit": "per_1m_tokens"
+        },
+        "cacheRead": {
+          "value": 2.0,
+          "unit": "per_1m_tokens"
+        }
+      },
+      "contextWindow": 1050000,
+      "sourceUrl": "https://developers.openai.com/api/docs/pricing",
+      "seenAt": "2026-10-13",
       "batchMultiplier": 0.5,
       "encoding": "o200k_base",
-      "contextWindow": 400000,
-      "countAccuracy": "exact",
+      "countAccuracy": "approximate",
+      "cacheMinimumTokens": 1024,
+      "cacheLifetimeSeconds": 1800,
+      "note": "Requests over 272K input tokens pay the long-context rates. Cache writes cost 1.25x input and a cached prefix lives at least 30 minutes after its last write or reuse. Counted with o200k_base; OpenAI's model page does not name this model's tokenizer, so the count is marked approximate."
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "displayName": "GPT-6.1 Sol",
+      "provider": "OpenAI",
+      "input": {
+        "value": 2,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 10,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWrite": {
+        "value": 2.5,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 0.1,
+        "unit": "per_1m_tokens"
+      },
+      "longContext": {
+        "aboveTokens": 272000,
+        "input": {
+          "value": 4,
+          "unit": "per_1m_tokens"
+        },
+        "output": {
+          "value": 15,
+          "unit": "per_1m_tokens"
+        },
+        "cacheWrite": {
+          "value": 5,
+          "unit": "per_1m_tokens"
+        },
+        "cacheRead": {
+          "value": 0.2,
+          "unit": "per_1m_tokens"
+        }
+      },
+      "contextWindow": 1050000,
       "sourceUrl": "https://developers.openai.com/api/docs/pricing",
-      "seenAt": "2026-08-04",
-      "note": "Cached input is 10% of input. Batch API is 50% off input and output.",
-      "cacheMinimumTokens": 1024
+      "seenAt": "2026-10-13",
+      "batchMultiplier": 0.5,
+      "encoding": "o200k_base",
+      "countAccuracy": "approximate",
+      "cacheMinimumTokens": 1024,
+      "cacheLifetimeSeconds": 1800,
+      "note": "Cached input is 0.05x input on this model, not the usual 0.1x. Requests over 272K input tokens pay the long-context rates. Cache writes cost 1.25x input and a cached prefix lives at least 30 minutes after its last write or reuse. Counted with o200k_base; OpenAI's model page does not name this model's tokenizer, so the count is marked approximate."
+    },
+    {
+      "id": "gpt-6-luna",
+      "displayName": "GPT-6 Luna",
+      "provider": "OpenAI",
+      "input": {
+        "value": 0.1,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 0.5,
+        "unit": "per_1m_tokens"
+      },
+      "cacheWrite": {
+        "value": 0.125,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 0.01,
+        "unit": "per_1m_tokens"
+      },
+      "longContext": {
+        "aboveTokens": 272000,
+        "input": {
+          "value": 0.2,
+          "unit": "per_1m_tokens"
+        },
+        "output": {
+          "value": 0.75,
+          "unit": "per_1m_tokens"
+        },
+        "cacheWrite": {
+          "value": 0.25,
+          "unit": "per_1m_tokens"
+        },
+        "cacheRead": {
+          "value": 0.02,
+          "unit": "per_1m_tokens"
+        }
+      },
+      "contextWindow": 1050000,
+      "sourceUrl": "https://developers.openai.com/api/docs/pricing",
+      "seenAt": "2026-10-13",
+      "batchMultiplier": 0.5,
+      "encoding": "o200k_base",
+      "countAccuracy": "approximate",
+      "cacheMinimumTokens": 1024,
+      "cacheLifetimeSeconds": 1800,
+      "note": "Requests over 272K input tokens pay the long-context rates. Cache writes cost 1.25x input and a cached prefix lives at least 30 minutes after its last write or reuse. Counted with o200k_base; OpenAI's model page does not name this model's tokenizer, so the count is marked approximate."
+    },
+    {
+      "id": "gpt-5.5",
+      "displayName": "GPT-5.5",
+      "provider": "OpenAI",
+      "input": {
+        "value": 5,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 30,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 0.5,
+        "unit": "per_1m_tokens"
+      },
+      "longContext": {
+        "aboveTokens": 272000,
+        "input": {
+          "value": 10,
+          "unit": "per_1m_tokens"
+        },
+        "output": {
+          "value": 45,
+          "unit": "per_1m_tokens"
+        },
+        "cacheRead": {
+          "value": 1.0,
+          "unit": "per_1m_tokens"
+        }
+      },
+      "contextWindow": 1050000,
+      "sourceUrl": "https://developers.openai.com/api/docs/pricing",
+      "seenAt": "2026-10-13",
+      "batchMultiplier": 0.5,
+      "encoding": "o200k_base",
+      "countAccuracy": "exact",
+      "cacheLifetimeSeconds": 1800,
+      "note": "Cached input is 0.1x input and there is no cache-write charge. Requests over 272K input tokens pay the long-context rates. A cached prefix typically lives around 30 minutes. OpenAI says the minimum cacheable prefix for this model varies by request settings, so none is assumed."
     },
     {
       "id": "gpt-5.4-mini",
@@ -43,125 +431,105 @@
         "value": 0.075,
         "unit": "per_1m_tokens"
       },
+      "contextWindow": 400000,
+      "sourceUrl": "https://developers.openai.com/api/docs/pricing",
+      "seenAt": "2026-10-13",
       "batchMultiplier": 0.5,
       "encoding": "o200k_base",
-      "contextWindow": 400000,
       "countAccuracy": "exact",
-      "sourceUrl": "https://developers.openai.com/api/docs/pricing",
-      "seenAt": "2026-08-04",
-      "cacheMinimumTokens": 1024
+      "note": "Cached input is 0.1x input and there is no cache-write charge. OpenAI says the minimum cacheable prefix for this model varies by request settings, so none is assumed."
     },
     {
-      "id": "claude-opus-4-8",
-      "displayName": "Claude Opus 4.8",
-      "provider": "Anthropic",
-      "input": {
-        "value": 5.0,
-        "unit": "per_1m_tokens"
-      },
-      "output": {
-        "value": 25.0,
-        "unit": "per_1m_tokens"
-      },
-      "cacheWrite": {
-        "value": 6.25,
-        "unit": "per_1m_tokens"
-      },
-      "cacheRead": {
-        "value": 0.5,
-        "unit": "per_1m_tokens"
-      },
-      "batchMultiplier": 0.5,
-      "contextWindow": 200000,
-      "countAccuracy": "approximate",
-      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
-      "seenAt": "2026-08-04",
-      "note": "Cache write is 1.25x input for a 5-minute entry and 2x ($10/MTok) for 1 hour; cache read is 0.1x. Anthropic publishes no browser tokenizer, and Claude 4.7+ uses a NEWER tokenizer that produces ~30% more tokens for the same text than earlier Claude models \u2014 so a near-neighbour BPE under-counts badly unless inflated. Enabling any tool adds a 290-token tool-use system prompt (410 with tool_choice any/tool). Minimum cacheable prefix is 1,024 tokens (2,048 is Opus 4.7, not 4.8). Changing tool definitions invalidates the tools, system AND message caches; changing tool_choice invalidates only messages.",
-      "cacheWriteLong": {
-        "value": 10.0,
-        "unit": "per_1m_tokens"
-      },
-      "tokenizerInflation": 1.3,
-      "toolSystemPromptTokens": 290,
-      "cacheMinimumTokens": 1024
-    },
-    {
-      "id": "claude-sonnet-5",
-      "displayName": "Claude Sonnet 5",
-      "provider": "Anthropic",
-      "input": {
-        "value": 2.0,
-        "unit": "per_1m_tokens"
-      },
-      "output": {
-        "value": 10.0,
-        "unit": "per_1m_tokens"
-      },
-      "cacheWrite": {
-        "value": 2.5,
-        "unit": "per_1m_tokens"
-      },
-      "cacheRead": {
-        "value": 0.2,
-        "unit": "per_1m_tokens"
-      },
-      "batchMultiplier": 0.5,
-      "contextWindow": 200000,
-      "countAccuracy": "approximate",
-      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
-      "seenAt": "2026-08-04",
-      "note": "INTRODUCTORY pricing through 2026-08-31; standard $3/$15 takes effect 2026-09-01, so this row is scheduled to become wrong. 1-hour cache write $4/MTok. Uses the newer Claude 4.7+ tokenizer (~30% more tokens for the same text). Enabling any tool adds a 354-token tool-use system prompt (474 with tool_choice any/tool). Minimum cacheable prefix 1,024 tokens.",
-      "cacheWriteLong": {
-        "value": 4.0,
-        "unit": "per_1m_tokens"
-      },
-      "tokenizerInflation": 1.3,
-      "toolSystemPromptTokens": 354,
-      "cacheMinimumTokens": 1024
-    },
-    {
-      "id": "gemini-3",
-      "displayName": "Gemini 3",
+      "id": "gemini-4-argon",
+      "displayName": "Gemini 4 Argon",
       "provider": "Google",
       "input": {
-        "value": 1.5,
+        "value": 2,
         "unit": "per_1m_tokens"
       },
       "output": {
-        "value": 9.0,
+        "value": 10,
         "unit": "per_1m_tokens"
       },
       "cacheRead": {
-        "value": 0.15,
+        "value": 0.1,
         "unit": "per_1m_tokens"
       },
       "contextWindow": 1000000,
-      "countAccuracy": "approximate",
       "sourceUrl": "https://ai.google.dev/gemini-api/docs/pricing",
-      "seenAt": "2026-08-04",
-      "note": "Output price includes thinking tokens. Context caching also bills storage per hour whether or not the cache is reused \u2014 not modelled here. No public browser tokenizer."
+      "seenAt": "2026-10-13",
+      "batchMultiplier": 0.5,
+      "countAccuracy": "approximate",
+      "priceChangesOn": "2026-12-01",
+      "note": "Launch pricing through 2026-11-30. Google lists $4 input, $20 output and $0.20 cached input from 2026-12-01. Output price includes thinking tokens. Implicit caching only. No public offline tokenizer."
+    },
+    {
+      "id": "gemini-3.8-flash",
+      "displayName": "Gemini 3.8 Flash",
+      "provider": "Google",
+      "input": {
+        "value": 0.75,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 3.75,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 0.075,
+        "unit": "per_1m_tokens"
+      },
+      "contextWindow": 1048576,
+      "sourceUrl": "https://ai.google.dev/gemini-api/docs/pricing",
+      "seenAt": "2026-10-13",
+      "batchMultiplier": 0.5,
+      "countAccuracy": "approximate",
+      "priceChangesOn": "2027-01-01",
+      "note": "Launch pricing through 2026-12-31. Google lists $1.50 input, $7.50 output and $0.15 cached input from 2027-01-01. Output price includes thinking tokens. Explicit context caching also bills storage per hour ($0.50 per 1M tokens) whether or not the cache is reused; that is not modelled here. No public offline tokenizer."
     },
     {
       "id": "deepseek-v4-pro",
       "displayName": "DeepSeek V4 Pro",
       "provider": "DeepSeek",
       "input": {
-        "value": 0.435,
+        "value": 1.32,
         "unit": "per_1m_tokens"
       },
       "output": {
-        "value": 0.87,
+        "value": 3.96,
         "unit": "per_1m_tokens"
       },
       "cacheRead": {
-        "value": 0.003625,
+        "value": 0.044,
         "unit": "per_1m_tokens"
       },
-      "contextWindow": 128000,
-      "countAccuracy": "approximate",
+      "contextWindow": 1000000,
       "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
-      "seenAt": "2026-08-04",
-      "note": "Input rate shown is cache-miss. Cache hit is roughly 0.8% of miss \u2014 the most extreme cache economics of any provider here."
+      "seenAt": "2026-10-13",
+      "countAccuracy": "approximate",
+      "note": "PEAK rates (01:00-04:00 and 06:00-10:00 UTC, Monday to Friday). Off-peak rates are half: $0.66 input, $1.98 output, $0.022 cache hit. The peak rate is stored so an estimate lands over the invoice rather than under it. Input rate shown is cache-miss."
+    },
+    {
+      "id": "deepseek-flash",
+      "displayName": "DeepSeek V4.1 Flash",
+      "provider": "DeepSeek",
+      "input": {
+        "value": 0.3,
+        "unit": "per_1m_tokens"
+      },
+      "output": {
+        "value": 1.2,
+        "unit": "per_1m_tokens"
+      },
+      "cacheRead": {
+        "value": 0.006,
+        "unit": "per_1m_tokens"
+      },
+      "contextWindow": 1000000,
+      "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "seenAt": "2026-10-13",
+      "countAccuracy": "approximate",
+      "note": "PEAK rates (01:00-04:00 and 06:00-10:00 UTC, Monday to Friday). Off-peak rates are half: $0.15 input, $0.60 output, $0.003 cache hit. A cache hit is 2% of a miss, the lowest ratio in this table. The retired name deepseek-v4-flash is served by this model at this price."
     }
   ]
 }

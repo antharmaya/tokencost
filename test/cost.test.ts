@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { compareCaching, computeCost, formatUsd, perToken } from '../src/cost.js';
+import { compareCaching, computeCost, formatUsd, perToken, ratesFor } from '../src/cost.js';
 import {
   conservativeTokenizer,
   estimateTokens,
@@ -7,7 +7,7 @@ import {
   guardrailTokenizer,
   inflatedTokenizer,
 } from '../src/tokenizer.js';
-import { staticPricing } from '../src/pricing.js';
+import { LAST_REVIEWED, staticPricing } from '../src/pricing.js';
 import type { ModelPrice, Scenario } from '../src/types.js';
 
 const opus = staticPricing.priceFor('claude-opus-4-8')!;
@@ -156,11 +156,18 @@ describe('the minimum cacheable prefix', () => {
     // vendor table settled it.
     expect(staticPricing.priceFor('claude-opus-4-8')!.cacheMinimumTokens).toBe(1024);
     expect(staticPricing.priceFor('claude-sonnet-5')!.cacheMinimumTokens).toBe(1024);
-    expect(staticPricing.priceFor('gpt-5.5')!.cacheMinimumTokens).toBe(1024);
+    // Re-read 2026-10-13. The Claude 5.5 family and Fable 5.1 dropped to 512,
+    // and OpenAI documents 1,024 for GPT-5.6 and later.
+    for (const id of ['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']) {
+      expect(staticPricing.priceFor(id)!.cacheMinimumTokens).toBe(512);
+    }
+    expect(staticPricing.priceFor('gpt-6.1-sol')!.cacheMinimumTokens).toBe(1024);
   });
 
   test('an undocumented minimum is absent, never invented', () => {
-    for (const id of ['gemini-3', 'deepseek-v4-pro']) {
+    // OpenAI now says the minimum for GPT-5.5 and earlier "varies by request
+    // settings", so the 1,024 this table used to carry for them was removed.
+    for (const id of ['gemini-4-argon', 'deepseek-v4-pro', 'gpt-5.5', 'gpt-5.4-mini']) {
       expect(staticPricing.priceFor(id)!.cacheMinimumTokens).toBeUndefined();
     }
   });
@@ -206,10 +213,29 @@ describe('prompt caching — where the order of magnitude lives', () => {
     expect(long.multiple).toBeGreaterThan(short.multiple);
   });
 
-  test('DeepSeek cache economics are the most extreme of the table', () => {
-    const ds = staticPricing.priceFor('deepseek-v4-pro')!;
-    const ratio = perToken(ds.cacheRead!) / perToken(ds.input);
-    expect(ratio).toBeLessThan(0.01); // cache hit under 1% of miss
+  test('a cache read is never dearer than fresh input, on any model', () => {
+    for (const m of staticPricing.all()) {
+      if (m.cacheRead) expect(perToken(m.cacheRead)).toBeLessThan(perToken(m.input));
+    }
+  });
+
+  test('the read discount is not one number: it runs from 2% to 10% of input', () => {
+    // Every calculator that hard-codes "cached input is 10%" is wrong for the
+    // models where caching matters most. DeepSeek Flash reads at 2% of a miss,
+    // Claude Fable 5.1 at 2.5%, Opus 5.5 and GPT-6.1 Sol at 5%.
+    const ratio = (id: string) => {
+      const m = staticPricing.priceFor(id)!;
+      return perToken(m.cacheRead!) / perToken(m.input);
+    };
+    expect(ratio('deepseek-flash')).toBeCloseTo(0.02, 6);
+    expect(ratio('claude-fable-5-1')).toBeCloseTo(0.025, 6);
+    expect(ratio('claude-opus-5-5')).toBeCloseTo(0.05, 6);
+    expect(ratio('gpt-6.1-sol')).toBeCloseTo(0.05, 6);
+    expect(ratio('claude-opus-4-8')).toBeCloseTo(0.1, 6);
+    const lowest = Math.min(
+      ...staticPricing.all().filter((m) => m.cacheRead).map((m) => ratio(m.id)),
+    );
+    expect(lowest).toBeCloseTo(ratio('deepseek-flash'), 6);
   });
 });
 
@@ -417,7 +443,113 @@ describe("the tool-use system prompt you never wrote", () => {
   });
 });
 
+describe('long-context pricing — the bill changes because the run got older', () => {
+  const haiku = staticPricing.priceFor('claude-haiku-5-5')!;
+
+  test('the higher rates apply only above the threshold, and to every rate', () => {
+    const under = ratesFor(haiku, 100_000);
+    const over = ratesFor(haiku, 100_001);
+    expect(under.longContext).toBe(false);
+    expect(over.longContext).toBe(true);
+    expect(over.input).toBeCloseTo(under.input * 5, 12);
+    expect(over.output).toBeCloseTo(under.output * 5, 12);
+    expect(over.cacheRead).toBeCloseTo(under.cacheRead * 5, 12);
+    expect(over.cacheWrite!).toBeCloseTo(under.cacheWrite! * 5, 12);
+  });
+
+  test('a model with no long-context tier has one set of rates at any length', () => {
+    const a = ratesFor(opus, 1_000);
+    const b = ratesFor(opus, 900_000);
+    expect(b).toEqual(a);
+  });
+
+  test('a run that crosses the line is billed at the higher rates from that turn on', () => {
+    // 90,000 tokens of tools puts turn 1 under 100k; each turn adds a
+    // 6,000-token reply, so the prompt crosses on the third request.
+    const run = computeCost(
+      scenario({ turnCount: 4, toolDefinitionTokens: 90_000, outputTokensPerTurn: 6_000 }),
+      haiku,
+      guardrailTokenizer,
+    );
+    expect(run.perTurn.map((t) => t.longContext)).toEqual([false, false, true, true]);
+
+    const { longContext: _tier, ...flat } = haiku;
+    const naive = computeCost(
+      scenario({ turnCount: 4, toolDefinitionTokens: 90_000, outputTokensPerTurn: 6_000 }),
+      flat,
+      guardrailTokenizer,
+    );
+    // Same tokens, and the two turns past the line cost exactly 5x.
+    expect(run.totalInputTokens).toBe(naive.totalInputTokens);
+    expect(run.perTurn[1].costUsd).toBeCloseTo(naive.perTurn[1].costUsd, 12);
+    expect(run.perTurn[2].costUsd).toBeCloseTo(naive.perTurn[2].costUsd * 5, 12);
+    expect(run.totalCostUsd).toBeGreaterThan(naive.totalCostUsd * 2);
+  });
+
+  test('a cache rate missing from the tier falls back to the tier input, never the cheaper base', () => {
+    const p: ModelPrice = {
+      ...opus,
+      longContext: {
+        aboveTokens: 1000,
+        input: { value: 10, unit: 'per_1m_tokens' },
+        output: { value: 50, unit: 'per_1m_tokens' },
+      },
+    };
+    const r = ratesFor(p, 2000);
+    expect(r.cacheRead).toBe(r.input);
+    expect(r.cacheWrite).toBeUndefined();
+  });
+});
+
+describe('a provider that sells one cache lifetime', () => {
+  const sol = staticPricing.priceFor('gpt-6.1-sol')!;
+
+  test('its lifetime overrides the 5-minute / 1-hour choice', () => {
+    // Ten minutes between turns kills a 5-minute Anthropic cache. A GPT-6 entry
+    // lives at least 30 minutes, so the same run still reads from it.
+    const slow = scenario({ cacheEnabled: true, secondsBetweenTurns: 600 });
+    expect(computeCost(slow, opus, guardrailTokenizer).perTurn[1].cacheExpired).toBe(true);
+    expect(computeCost(slow, sol, guardrailTokenizer).perTurn[1].cacheExpired).toBe(false);
+    const slower = scenario({ cacheEnabled: true, secondsBetweenTurns: 1801 });
+    expect(computeCost(slower, sol, guardrailTokenizer).perTurn[1].cacheExpired).toBe(true);
+  });
+
+  test("asking for a 1-hour cache does not invent a write rate it doesn't sell", () => {
+    const five = computeCost(scenario({ cacheEnabled: true, cacheTtl: '5m' }), sol, guardrailTokenizer);
+    const hour = computeCost(scenario({ cacheEnabled: true, cacheTtl: '1h' }), sol, guardrailTokenizer);
+    expect(hour.totalCostUsd).toBe(five.totalCostUsd);
+  });
+});
+
 describe('pricing table integrity', () => {
+  test('the table says when it was read, and every row agrees', () => {
+    expect(LAST_REVIEWED).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    for (const m of staticPricing.all()) expect(m.seenAt <= LAST_REVIEWED).toBe(true);
+  });
+
+  test('model ids are unique', () => {
+    const ids = staticPricing.all().map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test('an announced price change is a real date, later than the day the row was read', () => {
+    const dated = staticPricing.all().filter((m) => m.priceChangesOn);
+    expect(dated.length).toBeGreaterThan(0);
+    for (const m of dated) {
+      expect(m.priceChangesOn!).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(m.priceChangesOn! > m.seenAt).toBe(true);
+    }
+  });
+
+  test('a long-context tier is never cheaper than the base rates', () => {
+    for (const m of staticPricing.all()) {
+      if (!m.longContext) continue;
+      expect(perToken(m.longContext.input)).toBeGreaterThan(perToken(m.input));
+      expect(perToken(m.longContext.output)).toBeGreaterThan(perToken(m.output));
+      expect(m.longContext.aboveTokens).toBeLessThan(m.contextWindow);
+    }
+  });
+
   test('every model carries provenance — no bare numbers', () => {
     for (const m of staticPricing.all()) {
       expect(m.sourceUrl).toStartWith('https://');
