@@ -2,7 +2,7 @@
 
 **Price a whole agent run, not one request.**
 
-Every public LLM cost calculator I could find in August 2026 prices a single
+Every public LLM cost calculator checked in August 2026 prices a single
 message: you give it a token count, it multiplies by a rate. That misses where
 the money actually goes.
 
@@ -31,6 +31,7 @@ Multiply the first number by twenty and you are wrong by more than double.
 | **Minimum cacheable prefix** | below it there is no cache, no write, and **no error** |
 | **Cache write premium** | 1.25× input for 5-minute, 2× for 1-hour |
 | **Cache TTL expiry** | wall clock, not compute — a slow agent never collects a read |
+| **Long-context rates** | past a prompt-length line the whole request is re-priced: 5× on Claude Haiku 5.5, about 2× on GPT-5.5 and GPT-6 |
 | **Tool definitions** | resent every turn, plus the vendor's own tool-use system prompt |
 | **Thinking tokens** | billed at the output rate, and they do *not* compound |
 | **Tool-change invalidation** | editing the tools array wipes tools, system *and* messages |
@@ -51,11 +52,14 @@ npm i gpt-tokenizer
 import {
   compareCaching,
   staticPricing,
-  guardrailTokenizer,
+  tokenizerForModel,
   formatUsd,
 } from "@antharmaya/tokencost";
 
-const price = staticPricing.priceFor("claude-opus-4-8")!;
+const price = staticPricing.priceFor("claude-opus-5-5")!;
+// Exact for models with a public tokenizer; otherwise the higher of two
+// estimates plus the vendor's documented correction.
+const tokenizer = await tokenizerForModel(price);
 
 const result = compareCaching(
   {
@@ -75,27 +79,30 @@ const result = compareCaching(
     batchEnabled: false,
   },
   price,
-  guardrailTokenizer,
+  tokenizer,
 );
 
-formatUsd(result.uncached.totalCostUsd); // "$0.8879"
-formatUsd(result.cached.totalCostUsd);   // "$0.4293"
-result.multiple;                          // 2.07
+formatUsd(result.uncached.totalCostUsd); // "$0.7131"
+formatUsd(result.cached.totalCostUsd);   // "$0.3204"
+result.multiple.toFixed(2);              // "2.23"
 ```
 
-Those are the numbers this exact snippet prints, with the prompts truncated as
-shown. The figures quoted elsewhere in this README use the full coding-agent
-prompt, which is longer — paste the snippet and you should get what the comments
-say, or one of us has a bug.
+Those are the numbers this exact snippet prints with `gpt-tokenizer` installed
+and the prompts truncated as shown. The figures quoted elsewhere in this README
+use the full coding-agent prompt, which is longer, on Claude Opus 5.5 at the
+prices read on 2026-10-13. Paste the snippet and you should get what the
+comments say; if you don't, that is a bug worth reporting.
 
 ## Four findings this produced
 
-**Your cache does not exist for the first two turns.** Anthropic will not cache
-a prefix below a per-model minimum, and the thresholds are not monotonic: 512 on
-Opus 5, 1,024 on Opus 4.8 and Sonnet 5, 2,048 on Opus 4.7, 4,096 on Opus 4.6.
-Upgrading a model can silently change whether your prompt caches at all. Under
-the threshold the request is processed uncached — no hit, no write, no premium,
-and no error. It returns 200 and caches nothing.
+**Your cache does not exist until the prompt is long enough.** Anthropic will
+not cache a prefix below a per-model minimum, and the thresholds are not
+monotonic: 512 on Fable 5.1, Opus 5.5, Sonnet 5.5 and Haiku 5.5, 1,024 on Opus
+4.8 and Sonnet 5, 2,048 on Opus 4.7, 4,096 on Opus 4.6. Switching models can
+silently change whether your prompt caches at all: this run caches from its
+second turn on Opus 5.5 and from its third on Opus 4.8. Under the threshold the
+request is processed uncached — no hit, no write, no premium, and no error. It
+returns 200 and caches nothing.
 
 **Caching can lose money forever.** A cache entry expires on wall clock. If the
 gap between turns outlives the TTL, every turn pays the write premium and
@@ -104,13 +111,13 @@ looks like, not an edge case.
 
 **Thinking tokens dominate everything else.** Billed at the output rate, and
 measured traces show 2–8× more thinking than visible output. At the top of that
-range a run costs **6.49×** what a model ignoring it would report — larger than
+range a run costs **6.92×** what a model ignoring it would report — larger than
 the multi-turn curve itself.
 
 **Changing your tools zeroes the cache.** The prefix is ordered
 `tools → system → messages`, and editing the tools array invalidates all three.
 An agent that swaps tools per turn gets zero cache hits: on a 20-turn run with
-3,290 tokens of tools that is **3.07×** the frozen-tools cost, and **1.19×**
+3,286 tokens of tools that is **3.37×** the frozen-tools cost, and **1.19×**
 what you would pay with caching switched off entirely. Turning the cache on
 makes it worse. Changing `tool_choice` instead invalidates only the messages, so
 declare the full set once and steer with that.
@@ -125,26 +132,37 @@ cat session.json | npx @antharmaya/tokencost --json
 ```
 
 ```
-  5 turns · claude-opus-4-8
-  20,800 input · 3,000 output · 4,300 from cache
-  ~$0.1597 at Claude Opus 4.8 list prices
-  prices read 2026-08-04 · https://platform.claude.com/…/pricing
+  5 turns · claude-opus-5-5
+  22,370 input · 3,000 output · 6,840 from cache
+  ~$0.1390 at Claude Opus 5.5 list prices
+  prices read 2026-10-13 · https://platform.claude.com/docs/en/about-claude/pricing
 
   MEASURED — these are facts from your log
   ✗ Tool definitions changed (turn 4)
-      Tools hash went 652e362d6015 → 2c1f8bdc041d. The cached prefix is
+      Tools hash went 7e267eb19128 → cd3e8a485e6d. The cached prefix is
       ordered tools → system → messages, so this invalidated all three…
   ! Gap exceeded the cache TTL (turn 5)
       730s between turn 4 and 5, past the 300s lifetime…
-  · Achieved cache hit rate: 20.7%
+  · Achieved cache hit rate: 30.6%
+      6,840 of 22,370 input tokens were cache reads.
 ```
 
+That is the real output for [`examples/run.jsonl`](https://github.com/antharmaya/tokencost/blob/main/examples/run.jsonl),
+trimmed where the `…` is.
+
+The two vendor families report the same quantities in opposite shapes, and the
+CLI normalises them. Anthropic and Bedrock split a prompt into three counters
+that do not overlap: `input_tokens` is only what was neither read from nor
+written to the cache, so the prompt is the sum of all three. OpenAI reports the
+total and breaks the cached part out under `input_tokens_details` or
+`prompt_tokens_details`. "Input" above always means the whole prompt, and the
+cost bills fresh, read and written tokens each at their own rate.
+
 Findings are split into **measured** and **inferred**, and the split is load
-bearing. Anthropic and Bedrock report `cache_read_input_tokens`, so the hit rate
-there is a fact. OpenAI folds cache reads into `prompt_tokens`, so the same
-number would be a guess — and the CLI says so rather than printing one. A tool
-that shows a guess in the same typeface as a measurement is worse than one that
-stays quiet.
+bearing. Where a log carries the cache counters, the hit rate is a fact. Where
+it carries only a prompt total, the same number would be a guess — and the CLI
+says so rather than printing one. A tool that shows a guess in the same typeface
+as a measurement is worse than one that stays quiet.
 
 Exits `1` when a measured critical finding is present, so it works in CI.
 
@@ -159,24 +177,41 @@ serialisation bug it is rather than as a deliberate tool change.
   default in the OpenAI Agents SDK and unconfigured LangChain. CrewAI
   (`respect_context_window=True`) and LlamaIndex compact by default, and the
   orchestrator+subagent pattern returns summaries. Treat the curve as a ceiling.
-- **Anthropic, Google and DeepSeek publish no browser tokenizer.** Those models
+- **Anthropic, Google and DeepSeek publish no offline tokenizer.** Those models
   are counted with the larger of two credible estimators, then corrected by
-  Anthropic's own documented ~30% uplift for Claude 4.7+. Marked `approximate`,
-  never silently.
-- **Gemini and DeepSeek cache minimums are absent, not zero.** No source I
-  verified publishes them, and an invented threshold would silently change every
-  short-prompt result while being indistinguishable from a correct one.
+  Anthropic's own documented ~30% uplift for Claude Opus 4.7 and later. The
+  GPT-6 models are counted with `o200k_base` because OpenAI's model pages do
+  not name their tokenizer. All of these are marked `approximate`, never
+  silently. `tokenizerForModel(price)` applies this policy for you.
+- **Some cache minimums are absent, not zero.** Google and DeepSeek publish
+  none, and OpenAI says the minimum for GPT-5.5 and earlier varies by request
+  settings. An invented threshold would silently change every short-prompt
+  result while being indistinguishable from a correct one, so those rows carry
+  none.
+- **DeepSeek is stored at its peak rate.** Off-peak is half. The peak rate is
+  the one kept so that an estimate lands over the invoice, not under it.
 - **Not modelled yet:** vision/audio tokens, server-side tool charges (web
-  search is billed per call), long-context pricing tiers, and Anthropic's
-  20-block cache lookback window — a single-breakpoint agent exhausts it after
-  roughly ten turns and then misses on a prefix that is still byte-identical,
-  just out of range.
+  search is billed per call), Gemini's per-hour cache storage fee, Anthropic's
+  fast mode and US-only inference multiplier, and Anthropic's 20-block cache
+  lookback window — a single-breakpoint agent exhausts it after roughly ten
+  turns and then misses on a prefix that is still byte-identical, just out of
+  range. When pricing a real log, cache writes are billed at the short-lifetime
+  rate, because a log does not reliably say which lifetime was bought.
 
 ## Prices go stale — that is the point of the dates
 
-Every record carries `sourceUrl` and `seenAt`. Prices do **not** only move
-downward: Anthropic's Sonnet 5 introductory rate ends 2026-08-31 and the row is
-scheduled to become wrong. A test asserts every price has provenance.
+Every record carries `sourceUrl` and `seenAt`, the day a person read the vendor
+page. The table in this version was read on **2026-10-13** and covers 15 models
+from Anthropic, OpenAI, Google and DeepSeek.
+
+Prices move in both directions, and announced changes do not always happen.
+Anthropic scheduled Sonnet 5 to rise from $2/$10 to $3/$15 on 2026-09-01 and
+then cancelled it; an earlier version of this table carried a note saying the
+row was about to become wrong, and it was the note that was wrong. So a row with
+an announced change carries `priceChangesOn` (Gemini 4 Argon on 2026-12-01,
+Gemini 3.8 Flash on 2027-01-01), and from that date the CLI says the figure uses
+the earlier rates instead of quietly printing them. A test asserts every price
+has provenance.
 
 **Found a stale rate? A PR updating `src/pricing.json` is the most useful thing
 you can send.** Include the vendor URL and the date you read it — a price
@@ -185,13 +220,14 @@ without both will not be merged.
 ## Tests
 
 ```bash
-bun test    # 60 tests
+bun test    # 75 tests
 ```
 
 They assert behaviour, not implementation: that input rises every turn, that
 doubling turns more than doubles input, that a flat per-request model understates
-a 20-turn agent by more than 2×, that thinking never joins the transcript, and
-that no shipped price is missing its source.
+a 20-turn agent by more than 2×, that thinking never joins the transcript, that
+a run crossing a long-context line is re-priced from that turn, and that no
+shipped price is missing its source.
 
 ## License
 

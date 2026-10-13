@@ -1,7 +1,7 @@
 {
   "name": "@antharmaya/tokencost",
   "version": "0.1.0",
-  "description": "Price a whole LLM agent run, not one request. Models context regrowth across turns, prompt-cache write premiums and TTL expiry, the minimum cacheable prefix, tool-definition overhead and thinking tokens.",
+  "description": "Price a whole LLM agent run, not one request. Models context regrowth across turns, prompt-cache write premiums and expiry, the minimum cacheable prefix, long-context rates, tool-definition overhead and thinking tokens.",
   "license": "MIT",
   "author": "Harsha Beesabathina <hello@antharmaya.com>",
   "repository": {
@@ -68,5 +68,8 @@
   },
   "bin": {
     "tokencost": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20.10"
   }
 }
