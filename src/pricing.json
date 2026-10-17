@@ -142,7 +142,7 @@
           "unit": "per_1m_tokens"
         },
         "cacheWriteLong": {
-          "value": 1.0,
+          "value": 1,
           "unit": "per_1m_tokens"
         },
         "cacheRead": {
@@ -245,7 +245,7 @@
         "unit": "per_1m_tokens"
       },
       "cacheRead": {
-        "value": 1.0,
+        "value": 1,
         "unit": "per_1m_tokens"
       },
       "longContext": {
@@ -263,7 +263,7 @@
           "unit": "per_1m_tokens"
         },
         "cacheRead": {
-          "value": 2.0,
+          "value": 2,
           "unit": "per_1m_tokens"
         }
       },
@@ -402,7 +402,7 @@
           "unit": "per_1m_tokens"
         },
         "cacheRead": {
-          "value": 1.0,
+          "value": 1,
           "unit": "per_1m_tokens"
         }
       },

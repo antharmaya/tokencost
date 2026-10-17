@@ -213,6 +213,49 @@ Gemini 3.8 Flash on 2027-01-01), and from that date the CLI says the figure uses
 the earlier rates instead of quietly printing them. A test asserts every price
 has provenance.
 
+### How the table stays current
+
+1. **Daily check.** A GitHub Actions job (`.github/workflows/price-check.yml`)
+   re-reads every page the table cites: Anthropic's pricing and prompt-caching
+   pages, OpenAI's pricing page, DeepSeek's pricing page and Google's Gemini
+   pricing page. For every row it extracts the rates, the long-context line,
+   the batch multiplier, the cache minimum and the tool-use system prompt,
+   wherever the vendor publishes them. Then it compares them with
+   `src/pricing.json`.
+2. **PR for a changed number.** If a number differs, the job opens a pull
+   request, or updates the open one. The PR shows old → new and quotes the
+   vendor's own line. It moves `seenAt` only for the rows it re-read in full,
+   and moves `lastReviewed` only when every row was re-read.
+3. **Issue for everything else.** These never become a PR: a page that would
+   not load (Google sends browser-like clients to a sign-in page, so its rows
+   then say *could not verify automatically*), a row that is no longer on the
+   page, a cell it cannot read, a new model in a family the table already
+   covers, and a `priceChangesOn` date that has arrived. The issue closes
+   itself once a later run sees the problem gone.
+4. **A person merges.** Nothing is merged automatically. Check the quoted
+   line against the page and merge.
+5. **Release.** Pushing a `v*` tag that matches `package.json` publishes to
+   npm with provenance (`.github/workflows/release.yml`). A merged price
+   change reaches users only after a release.
+
+On a quiet day the job commits nothing. After 30 quiet days it opens a PR
+that only moves the dates. That keeps `lastReviewed` tracking the last real
+check, not the last price change.
+
+**If the loop stops, you will see it.** When the bundled table's
+`lastReviewed` is more than 45 days old, the CLI prints a warning on every
+run, and `--json` reports `priceTable.stale: true`. The cases are an old
+install, an unmerged PR, or a dead job. GitHub disables scheduled workflows
+in a repository with no activity for 60 days. The 30-day re-dating PR is
+meant to prevent that, but only if someone merges it. If the job has been
+disabled, re-enable it under Actions → Price check.
+
+Each parser is tested against a saved copy of its page in `test/fixtures/`.
+When a vendor changes its layout, the parser reports an error rather than
+picking the nearest number. To refresh the copies:
+`bun scripts/check-prices.ts --save-fixtures`, then `bun test`. To check the
+live pages by hand: `bun run check-prices`.
+
 **Found a stale rate? A PR updating `src/pricing.json` is the most useful thing
 you can send.** Include the vendor URL and the date you read it — a price
 without both will not be merged.
@@ -220,14 +263,15 @@ without both will not be merged.
 ## Tests
 
 ```bash
-bun test    # 75 tests
+bun test    # 100 tests
 ```
 
 They assert behaviour, not implementation: that input rises every turn, that
 doubling turns more than doubles input, that a flat per-request model understates
 a 20-turn agent by more than 2×, that thinking never joins the transcript, that
-a run crossing a long-context line is re-priced from that turn, and that no
-shipped price is missing its source.
+a run crossing a long-context line is re-priced from that turn, that no
+shipped price is missing its source, and that the price-check parsers read
+the saved vendor pages to the same numbers the table carries.
 
 ## License
 

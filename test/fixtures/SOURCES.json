@@ -1,0 +1,10 @@
+{
+  "fetchedOn": "2026-10-14",
+  "files": {
+    "anthropic-pricing.md": "https://platform.claude.com/docs/en/about-claude/pricing.md",
+    "anthropic-prompt-caching.md": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching.md",
+    "openai-pricing.md": "https://developers.openai.com/api/docs/pricing.md",
+    "deepseek-pricing.html": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "google-pricing.html": "https://ai.google.dev/gemini-api/docs/pricing?hl=en"
+  }
+}

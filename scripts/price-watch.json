@@ -1,0 +1,85 @@
+{
+  "$comment": "families: name prefixes per provider; a listed model starting with one of them is in a family the table covers. known: models the pages list that the table deliberately leaves out. A name in a family that is neither tabled nor known opens a 'new models' issue. Refresh known with: bun scripts/check-prices.ts --acknowledge",
+  "families": {
+    "anthropic": [
+      "Claude Fable",
+      "Claude Opus",
+      "Claude Sonnet",
+      "Claude Haiku"
+    ],
+    "openai": [
+      "gpt-6",
+      "gpt-5"
+    ],
+    "deepseek": [
+      "deepseek"
+    ],
+    "google": [
+      "gemini-"
+    ]
+  },
+  "known": {
+    "anthropic": [
+      "Claude Fable 5",
+      "Claude Haiku 3.5",
+      "Claude Haiku 4.5",
+      "Claude Opus 4",
+      "Claude Opus 4.1",
+      "Claude Opus 4.5",
+      "Claude Opus 4.6",
+      "Claude Opus 4.7",
+      "Claude Opus 5",
+      "Claude Sonnet 4",
+      "Claude Sonnet 4.5",
+      "Claude Sonnet 4.6"
+    ],
+    "openai": [
+      "gpt-5",
+      "gpt-5-mini",
+      "gpt-5-nano",
+      "gpt-5-pro",
+      "gpt-5.1",
+      "gpt-5.2",
+      "gpt-5.2-pro",
+      "gpt-5.4",
+      "gpt-5.4-nano",
+      "gpt-5.4-pro",
+      "gpt-5.5-pro",
+      "gpt-5.6-luna",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-6-sol"
+    ],
+    "deepseek": [],
+    "google": [
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-image",
+      "gemini-2.5-flash-lite",
+      "gemini-2.5-flash-native-audio",
+      "gemini-2.5-flash-preview-tts",
+      "gemini-2.5-pro",
+      "gemini-2.5-pro-preview-tts",
+      "gemini-3-flash-preview",
+      "gemini-3-pro-image",
+      "gemini-3.1-flash-image",
+      "gemini-3.1-flash-lite",
+      "gemini-3.1-flash-lite-image",
+      "gemini-3.1-flash-tts-preview",
+      "gemini-3.1-pro-preview",
+      "gemini-3.5-flash-lite",
+      "gemini-3.5-live-translate-preview",
+      "gemini-3.5-transcribe",
+      "gemini-3.5-transcribe-live",
+      "gemini-3.6-flash",
+      "gemini-3.8-flash-lite-tts",
+      "gemini-3.8-flash-tts",
+      "gemini-3.8-live",
+      "gemini-embedding-2",
+      "gemini-nano-banana-2.1",
+      "gemini-omni-1.1-flash",
+      "gemini-omni-flash-preview",
+      "gemini-robotics-er-2",
+      "gemini-robotics-er-2-streaming"
+    ]
+  }
+}

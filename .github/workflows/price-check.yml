@@ -1,0 +1,40 @@
+name: Price check
+
+# Re-reads every vendor page cited in src/pricing.json once a day.
+#   a number differs        -> opens or updates a PR (never merged by this job)
+#   a page or row unreadable -> opens or updates an issue, guesses nothing
+#   a new model in a family  -> issue listing it
+#   priceChangesOn arrived   -> issue
+# On a quiet day it commits nothing. Every 30 quiet days it opens a PR that only
+# re-dates the rows it re-read, which keeps the shipped table's date honest and
+# the repository active (GitHub disables schedules after 60 inactive days).
+
+on:
+  schedule:
+    - cron: '23 3 * * *' # 03:23 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: price-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      # The parsers are the thing a vendor layout change breaks. Run their
+      # tests first so a broken parser fails here, not as a wrong price.
+      - run: bun install --frozen-lockfile
+      - run: bun test test/price-check.test.ts
+      - name: Check vendor prices
+        run: bun scripts/check-prices.ts --github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
