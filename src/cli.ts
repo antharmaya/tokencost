@@ -13,7 +13,7 @@
 
 import { readFileSync } from 'node:fs';
 import { analyse, billedUsd, parseTranscript, type Finding } from './transcript.js';
-import { staticPricing } from './pricing.js';
+import { staticPricing, LAST_REVIEWED, STALE_AFTER_DAYS, tableAgeDays } from './pricing.js';
 import { formatUsd, CACHE_TTL_SECONDS } from './cost.js';
 
 const C = {
@@ -90,6 +90,10 @@ entirely on your machine.`);
   const today = new Date().toISOString().slice(0, 10);
   const pastChangeDate =
     price?.priceChangesOn !== undefined && today >= price.priceChangesOn;
+  // The bundled table ages from the day it was installed. Past the limit, say
+  // so on every run rather than print old rates in a confident typeface.
+  const tableAge = tableAgeDays(today);
+  const tableStale = tableAge > STALE_AFTER_DAYS;
 
   if (asJson) {
     console.log(
@@ -115,6 +119,7 @@ entirely on your machine.`);
               }
             : { id: modelId ?? null, note: 'not in the bundled price table' },
           estimatedCostUsd: billed ?? null,
+          priceTable: { lastReviewed: LAST_REVIEWED, ageDays: tableAge, stale: tableStale },
           findings,
         },
         null,
@@ -152,6 +157,15 @@ entirely on your machine.`);
     // bug when the real fault was that no usage had been parsed at all.
     console.log(
       C.dim('  no token counts in this log — findings only, no cost'),
+    );
+  }
+
+  if (tableStale) {
+    console.log(
+      C.yellow(
+        `  ! the bundled price table was last checked ${LAST_REVIEWED}, ${tableAge} days ago; ` +
+          'rates may have changed. Update with npm i @antharmaya/tokencost@latest',
+      ),
     );
   }
 

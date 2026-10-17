@@ -52,7 +52,7 @@ export {
   type Encoding,
 } from './tokenizer.js';
 
-export { staticPricing, LAST_REVIEWED } from './pricing.js';
+export { staticPricing, LAST_REVIEWED, STALE_AFTER_DAYS, tableAgeDays } from './pricing.js';
 
 export {
   parseTranscript,

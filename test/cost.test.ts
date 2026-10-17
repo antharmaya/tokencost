@@ -7,7 +7,7 @@ import {
   guardrailTokenizer,
   inflatedTokenizer,
 } from '../src/tokenizer.js';
-import { LAST_REVIEWED, staticPricing } from '../src/pricing.js';
+import { LAST_REVIEWED, STALE_AFTER_DAYS, staticPricing, tableAgeDays } from '../src/pricing.js';
 import type { ModelPrice, Scenario } from '../src/types.js';
 
 const opus = staticPricing.priceFor('claude-opus-4-8')!;
@@ -622,5 +622,21 @@ describe('formatting', () => {
     expect(formatUsd(0.000042)).toBe('$0.00004');
     expect(formatUsd(0.5)).toBe('$0.5000');
     expect(formatUsd(12.5)).toBe('$12.50');
+  });
+});
+
+describe('bundled table staleness', () => {
+  test('age counts whole days from lastReviewed', () => {
+    expect(tableAgeDays('2026-10-13', '2026-10-13')).toBe(0);
+    expect(tableAgeDays('2026-11-27', '2026-10-13')).toBe(45);
+    expect(tableAgeDays('2026-11-28', '2026-10-13')).toBe(46);
+  });
+  test('the CLI calls the table stale only past 45 days', () => {
+    expect(STALE_AFTER_DAYS).toBe(45);
+    expect(tableAgeDays('2026-11-27', '2026-10-13') > STALE_AFTER_DAYS).toBe(false);
+    expect(tableAgeDays('2026-11-28', '2026-10-13') > STALE_AFTER_DAYS).toBe(true);
+  });
+  test('defaults to the shipped lastReviewed', () => {
+    expect(tableAgeDays(LAST_REVIEWED)).toBe(0);
   });
 });
