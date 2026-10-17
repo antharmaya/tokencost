@@ -1,6 +1,6 @@
 {
   "name": "@antharmaya/tokencost",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Price a whole LLM agent run, not one request. Models context regrowth across turns, prompt-cache write premiums and expiry, the minimum cacheable prefix, long-context rates, tool-definition overhead and thinking tokens.",
   "license": "MIT",
   "author": "Harsha Beesabathina <hello@antharmaya.com>",
@@ -48,10 +48,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "bun test",
+    "check-prices": "bun scripts/check-prices.ts",
     "prepublishOnly": "bun test && bun run build"
   },
   "peerDependencies": {
-    "gpt-tokenizer": "^3.0.0"
+    "gpt-tokenizer": "^3.0.0 || ^4.0.0"
   },
   "peerDependenciesMeta": {
     "gpt-tokenizer": {
@@ -60,7 +61,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
-    "gpt-tokenizer": "^3.4.0",
+    "gpt-tokenizer": "^4.0.0",
     "typescript": "^7.0.2"
   },
   "publishConfig": {
