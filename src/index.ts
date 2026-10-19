@@ -52,12 +52,24 @@ export {
   type Encoding,
 } from './tokenizer.js';
 
-export { staticPricing, LAST_REVIEWED, STALE_AFTER_DAYS, tableAgeDays } from './pricing.js';
+export {
+  staticPricing,
+  lookupPrice,
+  normaliseModelId,
+  MODEL_ALIASES,
+  LAST_REVIEWED,
+  STALE_AFTER_DAYS,
+  tableAgeDays,
+} from './pricing.js';
 
 export {
   parseTranscript,
   analyse,
   billedUsd,
+  billRun,
+  cacheTtlSeconds,
+  type ModelSubtotal,
+  type RunBill,
   type Transcript,
   type TranscriptTurn,
   type Finding,
