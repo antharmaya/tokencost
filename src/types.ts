@@ -254,6 +254,16 @@ export interface ModelPrice {
    * not.
    */
   isCustom?: boolean;
+
+  /**
+   * Match this row only by its exact id, never through id normalisation.
+   *
+   * `priceFor` strips snapshot dates, provider prefixes and channel suffixes so
+   * `gpt-5.4-mini-2026-03-17` finds `gpt-5.4-mini`. That is wrong for a model
+   * whose dated snapshots were priced differently from its alias; set this on
+   * such a row and an unlisted snapshot gets no price rather than the wrong one.
+   */
+  exactMatchOnly?: boolean;
 }
 
 /** Mirrors RateGuard's PricingProvider. Swap the implementation, not callers. */
