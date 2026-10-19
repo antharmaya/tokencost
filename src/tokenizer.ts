@@ -8,7 +8,8 @@
  * that entirely and keeps this page deployable anywhere.
  *
  * `guardrailTokenizer` is RateGuard's own estimator, ported verbatim from
- * 02-fast-cash/rateguard/packages/sdk-node/src/core/tokenizer.ts. It is
+ * packages/sdk-node/src/core/tokenizer.ts in RateGuard
+ * (github.com/varbees/rateguard, local path pilots/rateguard/). It is
  * deliberately biased NOT to under-count so that a limit fails safe.
  *
  * Both are shown in the UI, side by side, and the gap between them is the

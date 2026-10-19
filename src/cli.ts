@@ -12,16 +12,20 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { analyse, billedUsd, parseTranscript, type Finding } from './transcript.js';
+import { analyse, billRun, cacheTtlSeconds, parseTranscript, type Finding } from './transcript.js';
 import { staticPricing, LAST_REVIEWED, STALE_AFTER_DAYS, tableAgeDays } from './pricing.js';
-import { formatUsd, CACHE_TTL_SECONDS } from './cost.js';
+import { formatUsd } from './cost.js';
 
+// Colour only for a person at a terminal: not when piped or redirected, and
+// not when NO_COLOR is set to anything non-empty (no-color.org).
+const colour = !!process.stdout.isTTY && !process.env.NO_COLOR;
+const paint = (code: string) => (s: string) => (colour ? `\x1b[${code}m${s}\x1b[0m` : s);
 const C = {
-  dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
-  bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
-  red: (s: string) => `\x1b[31m${s}\x1b[0m`,
-  yellow: (s: string) => `\x1b[33m${s}\x1b[0m`,
-  blue: (s: string) => `\x1b[34m${s}\x1b[0m`,
+  dim: paint('2'),
+  bold: paint('1'),
+  red: paint('31'),
+  yellow: paint('33'),
+  blue: paint('34'),
 };
 
 function readInput(path?: string): string {
@@ -38,7 +42,7 @@ function main() {
   cat run.json | tokencost
 
   --json         machine-readable output
-  --model <id>   price against a specific model (default: read from the log)
+  --model <id>   price every turn at this model (default: each turn's own)
 
 Accepts a JSON array or JSONL. Records may be raw provider requests, or
 { request, response, timestamp } wrappers. Nothing is uploaded; this runs
@@ -73,10 +77,19 @@ entirely on your machine.`);
 
   const modelId = modelFlag ?? t.turns.find((x) => x.model)?.model;
   const price = modelId ? staticPricing.priceFor(modelId) : undefined;
+  const override = modelFlag ? price : undefined;
+  // --model with an id the table does not know prices nothing, rather than
+  // silently falling back to whatever the log says.
+  const bill =
+    modelFlag && !price
+      ? undefined
+      : billRun(t, staticPricing.priceFor, override);
+  const models = bill?.byModel ?? [];
+  const mixed = models.length > 1;
 
   const findings = analyse(t, {
     cacheMinimumTokens: price?.cacheMinimumTokens,
-    ttlSeconds: price?.cacheLifetimeSeconds ?? CACHE_TTL_SECONDS['5m'],
+    ttlSeconds: cacheTtlSeconds(t, price),
   });
 
   // Actual spend, where the log reports enough to compute it.
@@ -84,7 +97,7 @@ entirely on your machine.`);
   const output = t.turns.reduce((a, x) => a + (x.outputTokens ?? 0), 0);
   const cacheRead = t.turns.reduce((a, x) => a + (x.cacheReadTokens ?? 0), 0);
   const cacheWrite = t.turns.reduce((a, x) => a + (x.cacheWriteTokens ?? 0), 0);
-  const billed = price ? billedUsd(t, price) : undefined;
+  const billed = bill?.totalUsd;
   // A vendor announced new rates from this date. The bundled ones are unchecked
   // past it, and saying so beats printing a confident number that may be stale.
   const today = new Date().toISOString().slice(0, 10);
@@ -119,6 +132,8 @@ entirely on your machine.`);
               }
             : { id: modelId ?? null, note: 'not in the bundled price table' },
           estimatedCostUsd: billed ?? null,
+          byModel: models,
+          unpricedTurns: bill?.unpricedTurns ?? t.turns.length,
           priceTable: { lastReviewed: LAST_REVIEWED, ageDays: tableAge, stale: tableStale },
           findings,
         },
@@ -130,14 +145,26 @@ entirely on your machine.`);
   }
 
   console.log('');
-  console.log(C.bold(`  ${t.turns.length} turns` + (modelId ? ` · ${modelId}` : '')));
+  const label = mixed ? `${models.length} models` : modelId;
+  console.log(C.bold(`  ${t.turns.length} turns` + (label ? ` · ${label}` : '')));
   console.log(
     C.dim(
       `  ${input.toLocaleString()} input · ${output.toLocaleString()} output` +
         (t.cacheTokensReported ? ` · ${cacheRead.toLocaleString()} from cache` : ''),
     ),
   );
-  if (billed !== undefined) {
+  if (billed !== undefined && mixed) {
+    console.log(C.dim(`  ~${formatUsd(billed)} at list prices, each turn at its own model`));
+    for (const m of models) {
+      const p = m.priceId ? staticPricing.priceFor(m.priceId) : undefined;
+      console.log(
+        C.dim(
+          `    ${m.model ?? '(no model)'} · ${m.turns} turn(s) · ` +
+            (m.costUsd !== null && p ? `~${formatUsd(m.costUsd)} · prices read ${p.seenAt}` : 'no bundled price, not included'),
+        ),
+      );
+    }
+  } else if (billed !== undefined) {
     console.log(C.dim(`  ~${formatUsd(billed)} at ${price!.displayName} list prices`));
     console.log(C.dim(`  prices read ${price!.seenAt} · ${price!.sourceUrl}`));
     if (pastChangeDate) {
