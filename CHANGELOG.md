@@ -21,6 +21,44 @@ All notable changes to `@antharmaya/tokencost`. Dates are UTC.
   trusted publishing and provenance when a `v*` tag matching `package.json` is
   pushed.
 
+- `billRun(transcript, priceFor, override?)` prices each turn at its own
+  model and returns per-model subtotals; `cacheTtlSeconds(transcript, price?)`,
+  `lookupPrice`, `normaliseModelId` and `MODEL_ALIASES` are exported.
+  `ModelPrice.exactMatchOnly` keeps a row out of normalised matching.
+
+### Fixed
+
+Each was confirmed against 0.1.0 by a review on 2026-10-17 and has a test.
+
+- Anthropic 1-hour cache writes were billed at the 5-minute rate. The parser
+  now reads `usage.cache_creation.ephemeral_1h_input_tokens` and
+  `ephemeral_5m_input_tokens` and bills each at its own rate. A turn with 1,000
+  fresh, 1,000 5-minute and 2,000 1-hour tokens on Claude Opus 5.5 was $0.0190
+  and is now $0.0250.
+- DeepSeek's native `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`
+  were ignored, so cache hits were billed as fresh input. 100,000 prompt
+  tokens at 90% hits plus 1,000 output on DeepSeek Flash was $0.0312 and is
+  now $0.00474 (6.6x over; 8.5x with no output).
+- Gemini `usageMetadata` was not parsed, so Gemini logs showed no tokens and
+  no cost. `promptTokenCount`, `toolUsePromptTokenCount`,
+  `cachedContentTokenCount`, `candidatesTokenCount` and `thoughtsTokenCount`
+  are now read; thoughts bill at the output rate. The model is also read from
+  the response's `modelVersion`.
+- `priceFor` matched exact ids only, so dated snapshots, Bedrock and Vertex
+  ids, provider-prefixed ids and `deepseek-v4-flash` got no price. Ids are now
+  normalised after an exact match fails.
+- Mixed-model logs were priced entirely at the first turn's model. Each turn
+  is now priced at its own; `--json` adds `byModel` and `unpricedTurns`;
+  `--model` overrides every turn.
+- The gap finding always used a 300s TTL. It now uses the model's
+  `cacheLifetimeSeconds` when set, and 3600s when the log shows 1-hour writes.
+- The hit rate could exceed 100% (a turn with cache reads but no prompt total
+  printed "50000.0%"). It is now computed only over turns that report a prompt
+  total, and capped at 100%.
+- The CLI printed ANSI colours when stdout was not a terminal. It now respects
+  `isatty` and `NO_COLOR`.
+- `src/tokenizer.ts` cited a stale repository path.
+
 ### Changed
 
 - The `gpt-tokenizer` peer range is widened to `^3.0.0 || ^4.0.0`. The test

@@ -150,13 +150,42 @@ cat session.json | npx @antharmaya/tokencost --json
 That is the real output for [`examples/run.jsonl`](https://github.com/antharmaya/tokencost/blob/main/examples/run.jsonl),
 trimmed where the `…` is.
 
-The two vendor families report the same quantities in opposite shapes, and the
-CLI normalises them. Anthropic and Bedrock split a prompt into three counters
+Vendors report the same quantities in different shapes, and the CLI
+normalises them. Anthropic and Bedrock split a prompt into three counters
 that do not overlap: `input_tokens` is only what was neither read from nor
-written to the cache, so the prompt is the sum of all three. OpenAI reports the
-total and breaks the cached part out under `input_tokens_details` or
-`prompt_tokens_details`. "Input" above always means the whole prompt, and the
-cost bills fresh, read and written tokens each at their own rate.
+written to the cache, so the prompt is the sum of all three. Their
+`usage.cache_creation` says how much of the write bought 5 minutes
+(`ephemeral_5m_input_tokens`) and how much an hour
+(`ephemeral_1h_input_tokens`), and each part is billed at its own rate; a log
+without that object bills the whole write at the 5-minute rate. OpenAI reports
+the total and breaks the cached part out under `input_tokens_details` or
+`prompt_tokens_details`. DeepSeek's native `prompt_cache_hit_tokens` and
+`prompt_cache_miss_tokens` are read too. Gemini's `usageMetadata` is read as
+`promptTokenCount` (which already includes `cachedContentTokenCount`) plus
+`toolUsePromptTokenCount` for input, and `candidatesTokenCount` plus
+`thoughtsTokenCount` for output, since thoughts bill at the output rate.
+"Input" above always means the whole prompt, and the cost bills fresh, read
+and written tokens each at their own rate.
+
+Each turn is priced at the model it used, so a run that hands work to a
+cheaper model is not billed as if the first model did everything; `--json`
+carries a `byModel` subtotal per model, and a turn whose model has no price is
+counted in `unpricedTurns` and left out of the total rather than priced at
+another model's rates. `--model <id>` prices every turn at that one model.
+Model ids are matched exactly first, then with dated snapshots
+(`-2026-03-17`, `-20251101`, Gemini's `-09-2026`), `-preview`/`-latest`/`-exp`,
+Bedrock and Vertex forms (`us.anthropic.claude-opus-5-5-v1:0`,
+`claude-haiku-5-5@20261001`) and provider prefixes (`anthropic/`, `openai/`,
+`models/`) stripped, plus an explicit alias for the retired
+`deepseek-v4-flash`. A table row marked `exactMatchOnly` is reached by its
+exact id only.
+
+The gap finding judges wall-clock gaps against the model's own cache lifetime
+where it sells one (30 minutes on GPT-5.6 and later), an hour when the log
+shows 1-hour cache writes, and 5 minutes otherwise. The hit rate is computed
+only over turns that report a prompt total, and never exceeds 100%.
+
+Colour is used only when stdout is a terminal and `NO_COLOR` is unset.
 
 Findings are split into **measured** and **inferred**, and the split is load
 bearing. Where a log carries the cache counters, the hit rate is a fact. Where
@@ -195,8 +224,9 @@ serialisation bug it is rather than as a deliberate tool change.
   fast mode and US-only inference multiplier, and Anthropic's 20-block cache
   lookback window — a single-breakpoint agent exhausts it after roughly ten
   turns and then misses on a prefix that is still byte-identical, just out of
-  range. When pricing a real log, cache writes are billed at the short-lifetime
-  rate, because a log does not reliably say which lifetime was bought.
+  range. When pricing a real log that lacks Anthropic's `cache_creation`
+  breakdown, cache writes are billed at the short-lifetime rate, because such
+  a log does not say which lifetime was bought.
 
 ## Prices go stale — that is the point of the dates
 
@@ -263,7 +293,7 @@ without both will not be merged.
 ## Tests
 
 ```bash
-bun test    # 100 tests
+bun test    # 122 tests
 ```
 
 They assert behaviour, not implementation: that input rises every turn, that
