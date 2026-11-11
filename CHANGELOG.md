@@ -6,6 +6,20 @@ All notable changes to `@antharmaya/tokencost`. Dates are UTC.
 
 ## [0.1.1] — not yet tagged
 
+### Changed
+
+- Prices now have one source: RateGuard's `conformance/pricing.json`, vendored
+  byte for byte in `vendor/rateguard-pricing.json`. `scripts/sync-prices.ts`
+  re-derives the price fields of `src/pricing.json` (`--check` in CI; a weekly
+  workflow opens a PR when RateGuard moves). tokencost keeps only the facts a
+  run simulator needs. The table moves to RateGuard's 2026-10-21 review and
+  gains the long-lifetime cache-write rates for GPT-6 Astra, GPT-6.1 Sol and
+  GPT-6 Luna (and their long-context rows).
+- The daily price check no longer edits prices or re-dates rows. A moved price
+  opens a `price:` issue that says what to change in RateGuard; a moved fact
+  (batch discount, cache minimum, tool prompt tokens) is still a PR here. The
+  30-day re-dating PR is gone: review dates come from RateGuard.
+
 ### Added
 
 - The CLI warns when the bundled price table's `lastReviewed` is more than 45

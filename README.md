@@ -90,7 +90,7 @@ result.multiple.toFixed(2);              // "2.23"
 Those are the numbers this exact snippet prints with `gpt-tokenizer` installed
 and the prompts truncated as shown. The figures quoted elsewhere in this README
 use the full coding-agent prompt, which is longer, on Claude Opus 5.5 at the
-prices read on 2026-10-13. Paste the snippet and you should get what the
+prices read on 2026-10-21. Paste the snippet and you should get what the
 comments say; if you don't, that is a bug worth reporting.
 
 ## Four findings this produced
@@ -135,7 +135,7 @@ cat session.json | npx @antharmaya/tokencost --json
   5 turns · claude-opus-5-5
   22,370 input · 3,000 output · 6,840 from cache
   ~$0.1390 at Claude Opus 5.5 list prices
-  prices read 2026-10-13 · https://platform.claude.com/docs/en/about-claude/pricing
+  prices read 2026-10-21 · https://platform.claude.com/docs/en/about-claude/pricing
 
   MEASURED — these are facts from your log
   ✗ Tool definitions changed (turn 4)
@@ -231,8 +231,17 @@ serialisation bug it is rather than as a deliberate tool change.
 ## Prices go stale — that is the point of the dates
 
 Every record carries `sourceUrl` and `seenAt`, the day a person read the vendor
-page. The table in this version was read on **2026-10-13** and covers 15 models
+page. The table in this version was read on **2026-10-21** and covers 15 models
 from Anthropic, OpenAI, Google and DeepSeek.
+
+**One source of prices.** The prices are not maintained here: they are copied
+from [RateGuard](https://github.com/varbees/rateguard)'s
+`conformance/pricing.json`, which its three SDKs also read
+(`vendor/rateguard-pricing.json`, byte for byte, its sha256 recorded in
+`src/pricing.json`). `scripts/sync-prices.ts` re-derives the table, and a test
+fails if a price here is edited by hand. What tokencost keeps for itself are
+the facts a run simulator needs: cache minimums and lifetimes, tokenizer, tool
+prompt overhead, context window, batch discount.
 
 Prices move in both directions, and announced changes do not always happen.
 Anthropic scheduled Sonnet 5 to rise from $2/$10 to $3/$15 on 2026-09-01 and
@@ -252,10 +261,13 @@ has provenance.
    the batch multiplier, the cache minimum and the tool-use system prompt,
    wherever the vendor publishes them. Then it compares them with
    `src/pricing.json`.
-2. **PR for a changed number.** If a number differs, the job opens a pull
-   request, or updates the open one. The PR shows old → new and quotes the
-   vendor's own line. It moves `seenAt` only for the rows it re-read in full,
-   and moves `lastReviewed` only when every row was re-read.
+2. **A changed price is RateGuard's to fix.** Prices are copied from
+   RateGuard's table, so a price that differs opens a `price:` issue here,
+   showing old → new and quoting the vendor's own line, with the change to
+   make in `varbees/rateguard` → `conformance/pricing.json`. A weekly job
+   (`.github/workflows/sync-prices.yml`) then opens the PR that brings the
+   new table in. A changed *fact* that tokencost owns (batch discount, cache
+   minimum, tool prompt tokens) is still a PR here, old → new, quoted.
 3. **Issue for everything else.** These never become a PR: a page that would
    not load (Google sends browser-like clients to a sign-in page, so its rows
    then say *could not verify automatically*), a row that is no longer on the
@@ -268,17 +280,18 @@ has provenance.
    npm with provenance (`.github/workflows/release.yml`). A merged price
    change reaches users only after a release.
 
-On a quiet day the job commits nothing. After 30 quiet days it opens a PR
-that only moves the dates. That keeps `lastReviewed` tracking the last real
-check, not the last price change.
+On a quiet day the job commits nothing. It never moves dates: `seenAt` and
+`lastReviewed` are RateGuard's, set when a person re-reads the vendor pages
+there.
 
 **If the loop stops, you will see it.** When the bundled table's
 `lastReviewed` is more than 45 days old, the CLI prints a warning on every
 run, and `--json` reports `priceTable.stale: true`. The cases are an old
 install, an unmerged PR, or a dead job. GitHub disables scheduled workflows
-in a repository with no activity for 60 days. The 30-day re-dating PR is
-meant to prevent that, but only if someone merges it. If the job has been
-disabled, re-enable it under Actions → Price check.
+in a repository with no activity for 60 days; if the job has been disabled,
+re-enable it under Actions → Price check. Because the dates are RateGuard's,
+a RateGuard table that goes 45 days without a review shows up here as stale:
+that is the signal to re-read the vendor pages there.
 
 Each parser is tested against a saved copy of its page in `test/fixtures/`.
 When a vendor changes its layout, the parser reports an error rather than
