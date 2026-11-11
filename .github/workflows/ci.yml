@@ -16,6 +16,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun test
+      # Prices are RateGuard's: fail if src/pricing.json drifted from the vendored copy.
+      - run: bun scripts/sync-prices.ts --check
       - run: bun run build
       # The README promises that its snippet and CLI sample print exactly what
       # it says. Run the CLI on the example the README quotes, so that promise

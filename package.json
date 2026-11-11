@@ -49,7 +49,8 @@
     "build": "tsc -p tsconfig.build.json",
     "test": "bun test",
     "check-prices": "bun scripts/check-prices.ts",
-    "prepublishOnly": "bun test && bun run build"
+    "prepublishOnly": "bun test && bun run build",
+    "sync-prices": "bun scripts/sync-prices.ts"
   },
   "peerDependencies": {
     "gpt-tokenizer": "^3.0.0 || ^4.0.0"

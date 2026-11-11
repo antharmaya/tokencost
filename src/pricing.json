@@ -1,6 +1,12 @@
 {
   "$comment": "Read off the vendor pricing pages by a person. Every record carries sourceUrl and seenAt. Prices move in both directions and announced changes get cancelled (Anthropic's Sonnet 5 rise never happened), so a stale table can be wrong either way. priceChangesOn marks a row whose vendor has announced new rates from that date. tokenizerInflation records a documented tokenizer change: Claude Opus 4.7 and later produce about 30% more tokens for the same text than earlier Claude models.",
-  "lastReviewed": "2026-10-13",
+  "lastReviewed": "2026-10-21",
+  "pricesFrom": {
+    "repo": "varbees/rateguard",
+    "path": "conformance/pricing.json",
+    "vendored": "vendor/rateguard-pricing.json",
+    "sha256": "7be18aaacfd6963d47f0a9b8d93e4ebb85f0359c4104be08988471cdca6c8ce5"
+  },
   "models": [
     {
       "id": "claude-fable-5-1",
@@ -14,6 +20,10 @@
         "value": 50,
         "unit": "per_1m_tokens"
       },
+      "cacheRead": {
+        "value": 0.25,
+        "unit": "per_1m_tokens"
+      },
       "cacheWrite": {
         "value": 12.5,
         "unit": "per_1m_tokens"
@@ -22,13 +32,9 @@
         "value": 20,
         "unit": "per_1m_tokens"
       },
-      "cacheRead": {
-        "value": 0.25,
-        "unit": "per_1m_tokens"
-      },
-      "contextWindow": 1000000,
       "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1000000,
       "cacheMinimumTokens": 512,
       "batchMultiplier": 0.5,
       "countAccuracy": "approximate",
@@ -47,6 +53,10 @@
         "value": 20,
         "unit": "per_1m_tokens"
       },
+      "cacheRead": {
+        "value": 0.2,
+        "unit": "per_1m_tokens"
+      },
       "cacheWrite": {
         "value": 5,
         "unit": "per_1m_tokens"
@@ -55,13 +65,9 @@
         "value": 8,
         "unit": "per_1m_tokens"
       },
-      "cacheRead": {
-        "value": 0.2,
-        "unit": "per_1m_tokens"
-      },
-      "contextWindow": 1000000,
       "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1000000,
       "cacheMinimumTokens": 512,
       "toolSystemPromptTokens": 286,
       "batchMultiplier": 0.5,
@@ -81,6 +87,10 @@
         "value": 10,
         "unit": "per_1m_tokens"
       },
+      "cacheRead": {
+        "value": 0.1,
+        "unit": "per_1m_tokens"
+      },
       "cacheWrite": {
         "value": 2.5,
         "unit": "per_1m_tokens"
@@ -89,13 +99,9 @@
         "value": 4,
         "unit": "per_1m_tokens"
       },
-      "cacheRead": {
-        "value": 0.1,
-        "unit": "per_1m_tokens"
-      },
-      "contextWindow": 1000000,
       "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1000000,
       "cacheMinimumTokens": 512,
       "toolSystemPromptTokens": 286,
       "batchMultiplier": 0.5,
@@ -115,16 +121,16 @@
         "value": 0.5,
         "unit": "per_1m_tokens"
       },
+      "cacheRead": {
+        "value": 0.01,
+        "unit": "per_1m_tokens"
+      },
       "cacheWrite": {
         "value": 0.125,
         "unit": "per_1m_tokens"
       },
       "cacheWriteLong": {
         "value": 0.2,
-        "unit": "per_1m_tokens"
-      },
-      "cacheRead": {
-        "value": 0.01,
         "unit": "per_1m_tokens"
       },
       "longContext": {
@@ -150,9 +156,9 @@
           "unit": "per_1m_tokens"
         }
       },
-      "contextWindow": 1000000,
       "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1000000,
       "cacheMinimumTokens": 512,
       "toolSystemPromptTokens": 286,
       "batchMultiplier": 0.5,
@@ -172,6 +178,10 @@
         "value": 25,
         "unit": "per_1m_tokens"
       },
+      "cacheRead": {
+        "value": 0.5,
+        "unit": "per_1m_tokens"
+      },
       "cacheWrite": {
         "value": 6.25,
         "unit": "per_1m_tokens"
@@ -180,13 +190,9 @@
         "value": 10,
         "unit": "per_1m_tokens"
       },
-      "cacheRead": {
-        "value": 0.5,
-        "unit": "per_1m_tokens"
-      },
-      "contextWindow": 1000000,
       "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1000000,
       "cacheMinimumTokens": 1024,
       "toolSystemPromptTokens": 290,
       "batchMultiplier": 0.5,
@@ -206,6 +212,10 @@
         "value": 10,
         "unit": "per_1m_tokens"
       },
+      "cacheRead": {
+        "value": 0.2,
+        "unit": "per_1m_tokens"
+      },
       "cacheWrite": {
         "value": 2.5,
         "unit": "per_1m_tokens"
@@ -214,13 +224,9 @@
         "value": 4,
         "unit": "per_1m_tokens"
       },
-      "cacheRead": {
-        "value": 0.2,
-        "unit": "per_1m_tokens"
-      },
-      "contextWindow": 1000000,
       "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1000000,
       "cacheMinimumTokens": 1024,
       "toolSystemPromptTokens": 354,
       "batchMultiplier": 0.5,
@@ -240,12 +246,16 @@
         "value": 50,
         "unit": "per_1m_tokens"
       },
+      "cacheRead": {
+        "value": 1,
+        "unit": "per_1m_tokens"
+      },
       "cacheWrite": {
         "value": 12.5,
         "unit": "per_1m_tokens"
       },
-      "cacheRead": {
-        "value": 1,
+      "cacheWriteLong": {
+        "value": 25,
         "unit": "per_1m_tokens"
       },
       "longContext": {
@@ -262,14 +272,18 @@
           "value": 25,
           "unit": "per_1m_tokens"
         },
+        "cacheWriteLong": {
+          "value": 50,
+          "unit": "per_1m_tokens"
+        },
         "cacheRead": {
           "value": 2,
           "unit": "per_1m_tokens"
         }
       },
-      "contextWindow": 1050000,
       "sourceUrl": "https://developers.openai.com/api/docs/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1050000,
       "batchMultiplier": 0.5,
       "encoding": "o200k_base",
       "countAccuracy": "approximate",
@@ -289,12 +303,16 @@
         "value": 10,
         "unit": "per_1m_tokens"
       },
+      "cacheRead": {
+        "value": 0.1,
+        "unit": "per_1m_tokens"
+      },
       "cacheWrite": {
         "value": 2.5,
         "unit": "per_1m_tokens"
       },
-      "cacheRead": {
-        "value": 0.1,
+      "cacheWriteLong": {
+        "value": 5,
         "unit": "per_1m_tokens"
       },
       "longContext": {
@@ -311,14 +329,18 @@
           "value": 5,
           "unit": "per_1m_tokens"
         },
+        "cacheWriteLong": {
+          "value": 10,
+          "unit": "per_1m_tokens"
+        },
         "cacheRead": {
           "value": 0.2,
           "unit": "per_1m_tokens"
         }
       },
-      "contextWindow": 1050000,
       "sourceUrl": "https://developers.openai.com/api/docs/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1050000,
       "batchMultiplier": 0.5,
       "encoding": "o200k_base",
       "countAccuracy": "approximate",
@@ -338,12 +360,16 @@
         "value": 0.5,
         "unit": "per_1m_tokens"
       },
+      "cacheRead": {
+        "value": 0.01,
+        "unit": "per_1m_tokens"
+      },
       "cacheWrite": {
         "value": 0.125,
         "unit": "per_1m_tokens"
       },
-      "cacheRead": {
-        "value": 0.01,
+      "cacheWriteLong": {
+        "value": 0.25,
         "unit": "per_1m_tokens"
       },
       "longContext": {
@@ -360,14 +386,18 @@
           "value": 0.25,
           "unit": "per_1m_tokens"
         },
+        "cacheWriteLong": {
+          "value": 0.5,
+          "unit": "per_1m_tokens"
+        },
         "cacheRead": {
           "value": 0.02,
           "unit": "per_1m_tokens"
         }
       },
-      "contextWindow": 1050000,
       "sourceUrl": "https://developers.openai.com/api/docs/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1050000,
       "batchMultiplier": 0.5,
       "encoding": "o200k_base",
       "countAccuracy": "approximate",
@@ -406,9 +436,9 @@
           "unit": "per_1m_tokens"
         }
       },
-      "contextWindow": 1050000,
       "sourceUrl": "https://developers.openai.com/api/docs/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1050000,
       "batchMultiplier": 0.5,
       "encoding": "o200k_base",
       "countAccuracy": "exact",
@@ -431,9 +461,9 @@
         "value": 0.075,
         "unit": "per_1m_tokens"
       },
-      "contextWindow": 400000,
       "sourceUrl": "https://developers.openai.com/api/docs/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 400000,
       "batchMultiplier": 0.5,
       "encoding": "o200k_base",
       "countAccuracy": "exact",
@@ -455,12 +485,12 @@
         "value": 0.1,
         "unit": "per_1m_tokens"
       },
-      "contextWindow": 1000000,
+      "priceChangesOn": "2026-12-01",
       "sourceUrl": "https://ai.google.dev/gemini-api/docs/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1000000,
       "batchMultiplier": 0.5,
       "countAccuracy": "approximate",
-      "priceChangesOn": "2026-12-01",
       "note": "Launch pricing through 2026-11-30. Google lists $4 input, $20 output and $0.20 cached input from 2026-12-01. Output price includes thinking tokens. Implicit caching only. No public offline tokenizer."
     },
     {
@@ -479,12 +509,12 @@
         "value": 0.075,
         "unit": "per_1m_tokens"
       },
-      "contextWindow": 1048576,
+      "priceChangesOn": "2027-01-01",
       "sourceUrl": "https://ai.google.dev/gemini-api/docs/pricing",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1048576,
       "batchMultiplier": 0.5,
       "countAccuracy": "approximate",
-      "priceChangesOn": "2027-01-01",
       "note": "Launch pricing through 2026-12-31. Google lists $1.50 input, $7.50 output and $0.15 cached input from 2027-01-01. Output price includes thinking tokens. Explicit context caching also bills storage per hour ($0.50 per 1M tokens) whether or not the cache is reused; that is not modelled here. No public offline tokenizer."
     },
     {
@@ -503,9 +533,9 @@
         "value": 0.044,
         "unit": "per_1m_tokens"
       },
-      "contextWindow": 1000000,
       "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1000000,
       "countAccuracy": "approximate",
       "note": "PEAK rates (01:00-04:00 and 06:00-10:00 UTC, Monday to Friday). Off-peak rates are half: $0.66 input, $1.98 output, $0.022 cache hit. The peak rate is stored so an estimate lands over the invoice rather than under it. Input rate shown is cache-miss."
     },
@@ -525,9 +555,9 @@
         "value": 0.006,
         "unit": "per_1m_tokens"
       },
-      "contextWindow": 1000000,
       "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
-      "seenAt": "2026-10-13",
+      "seenAt": "2026-10-21",
+      "contextWindow": 1000000,
       "countAccuracy": "approximate",
       "note": "PEAK rates (01:00-04:00 and 06:00-10:00 UTC, Monday to Friday). Off-peak rates are half: $0.15 input, $0.60 output, $0.003 cache hit. A cache hit is 2% of a miss, the lowest ratio in this table. The retired name deepseek-v4-flash is served by this model at this price."
     }

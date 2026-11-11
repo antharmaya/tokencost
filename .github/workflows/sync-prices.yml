@@ -1,0 +1,49 @@
+name: Sync prices from RateGuard
+
+# Prices have one source: varbees/rateguard -> conformance/pricing.json.
+# Once a week (and on demand) this copies that file into vendor/, re-derives
+# src/pricing.json, and opens or updates a PR when anything moved. Never merged
+# automatically: a human reads the diff, merges, and tags a release.
+
+on:
+  schedule:
+    - cron: '41 3 * * 1' # Mondays 03:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-prices
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Copy RateGuard's table and re-derive
+        run: bun scripts/sync-prices.ts --from https://raw.githubusercontent.com/varbees/rateguard/main/conformance/pricing.json
+      - run: bun test test/price-source.test.ts test/pricing.test.ts test/cost.test.ts
+      - name: Open or update the PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet -- vendor src/pricing.json; then echo "prices already match RateGuard"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C sync-prices/rateguard
+          git add vendor/rateguard-pricing.json src/pricing.json
+          git commit -m "chore(pricing): sync prices from RateGuard"
+          git push -f origin sync-prices/rateguard
+          if gh pr view sync-prices/rateguard --json state -q .state 2>/dev/null | grep -q OPEN; then
+            echo "PR already open; branch updated"
+          else
+            gh pr create --head sync-prices/rateguard --base main \
+              --title "chore(pricing): sync prices from RateGuard" \
+              --body "RateGuard's conformance/pricing.json moved. This copies it into vendor/ and re-derives src/pricing.json (scripts/sync-prices.ts). Check the diff, merge, then tag a release so the npm package and the calculator carry it."
+          fi
