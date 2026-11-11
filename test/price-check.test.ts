@@ -143,26 +143,21 @@ describe('the check against the table', () => {
     expect(JSON.stringify(JSON.parse(tableText), null, 2) + '\n').toBe(readFileSync(TABLE_PATH, 'utf8'));
   });
 
-  test('a changed price becomes a PR: old -> new, quoted line, re-dated rows', () => {
+  test('a changed price is RateGuard\'s to fix: an issue, never an edit here', () => {
     const p = with_('anthropic-pricing', (s) => s.replace(/(\| Claude Opus 5\.5 [^\n]*?)\$0\.20 \/ MTok/, '$1$0.25 / MTok'));
     const r = check(p);
     const opus = r.rows.find((x) => x.id === 'claude-opus-5-5')!;
     expect(opus.diffs).toEqual([{ field: 'cacheRead', old: 0.2, new: 0.25, quote: expect.stringContaining('$0.25 / MTok') }]);
     expect(opus.diffs[0]!.quote).toStartWith('| Claude Opus 5.5 |');
-    const up = applyUpdates(tableText, r)!;
-    expect(up.kind).toBe('prices');
-    const next = JSON.parse(up.text);
-    const row = next.models.find((m: any) => m.id === 'claude-opus-5-5');
-    expect(row.cacheRead.value).toBe(0.25);
-    expect(row.seenAt).toBe(TODAY);
-    expect(next.lastReviewed).toBe(TODAY);
-    // Only the rate and the dates moved.
-    const changed = up.text.split('\n').filter((l, i) => l !== tableText.split('\n')[i]);
-    expect(changed.every((l) => /"(value|seenAt|lastReviewed)"/.test(l))).toBe(true);
-    const body = renderPrBody(r, table, 'prices');
-    expect(body).toContain('**cacheRead**: 0.2 → **0.25**');
-    expect(body).toContain('$0.25 / MTok');
-    expect(body).toContain('never merged automatically');
+    // Prices come from RateGuard (scripts/sync-prices.ts): nothing to commit in tokencost.
+    expect(applyUpdates(tableText, r)).toBeUndefined();
+    expect(hasFindings(r)).toBe(true);
+    const issue = desiredIssues(r).desired.find((d) => d.key === 'price:claude-opus-5-5')!;
+    expect(issue.title).toContain('price moved at the vendor');
+    expect(issue.body).toContain('**cacheRead**: 0.2 → **0.25**');
+    expect(issue.body).toContain('$0.25 / MTok');
+    expect(issue.body).toContain('conformance/pricing.json');
+    expect(issue.body).toContain('sync-prices.ts');
   });
 
   test('an input change the batch table contradicts is a problem, and the row is not re-dated', () => {
@@ -171,16 +166,17 @@ describe('the check against the table', () => {
     expect(opus.diffs.map((d) => [d.field, d.new])).toEqual([['input', 5]]);
     expect(opus.problems[0]).toContain('not one multiplier');
     expect(opus.reread).toBe(false);
-    const next = JSON.parse(applyUpdates(tableText, r)!.text);
-    expect(next.models.find((m: any) => m.id === 'claude-opus-5-5').seenAt).toBe('2026-10-13');
-    expect(next.lastReviewed).toBe('2026-10-13');
+    expect(applyUpdates(tableText, r)).toBeUndefined(); // a price, so RateGuard's
   });
 
   test('a note that quotes the old figure is flagged in the PR', () => {
     const p = with_('anthropic-pricing', (s) => s.replace(/(\| Claude Opus 5\.5 [^\n]*?)286 tokens/, '$1300 tokens'));
     const r = check(p);
     expect(r.rows.find((x) => x.id === 'claude-opus-5-5')!.diffs[0]).toMatchObject({ field: 'toolSystemPromptTokens', old: 286, new: 300 });
-    expect(renderPrBody(r, table, 'prices')).toContain("note` mentions 286");
+    const up = applyUpdates(tableText, r)!; // a fact tokencost owns: still a PR
+    expect(up.kind).toBe('facts');
+    expect(JSON.parse(up.text).models.find((m: any) => m.id === 'claude-opus-5-5').toolSystemPromptTokens).toBe(300);
+    expect(renderPrBody(r, table, 'facts')).toContain("note` mentions 286");
   });
 
   test('DeepSeek peak change and the OpenAI long-context line', () => {
@@ -219,12 +215,8 @@ describe('the check against the table', () => {
     const issue = desiredIssues(r).desired.find((d) => d.key === 'source:google-pricing')!;
     expect(issue.body).toContain('gemini-4-argon');
     expect(hasFindings(r)).toBe(true);
-    // Every other row was still re-read, but lastReviewed must not move.
-    const refreshed = runCheck(p, table, watch, '2026-11-20');
-    const next = JSON.parse(applyUpdates(tableText, refreshed)!.text);
-    expect(next.lastReviewed).toBe(table.lastReviewed);
-    expect(next.models.find((m: any) => m.id === 'gemini-4-argon').seenAt).toBe('2026-10-13');
-    expect(next.models.find((m: any) => m.id === 'gpt-5.5').seenAt).toBe('2026-11-20');
+    // Dates belong to RateGuard's table now: the bot never re-dates a row.
+    expect(applyUpdates(tableText, runCheck(p, table, watch, '2026-11-20'))).toBeUndefined();
   });
 
   test('a new model in a tracked family opens an issue listing it', () => {
@@ -262,11 +254,9 @@ describe('the check against the table', () => {
     expect(cancelled.rows.find((x) => x.id === 'gemini-4-argon')!.schedule[0]).toContain('no longer announces a change');
   });
 
-  test('after 30 quiet days a refresh PR re-dates the rows', () => {
-    expect(applyUpdates(tableText, check(pages(), '2026-11-11'))).toBeUndefined();
-    const up = applyUpdates(tableText, check(pages(), '2026-11-12'))!;
-    expect(up.kind).toBe('refresh');
-    expect(JSON.parse(up.text).lastReviewed).toBe('2026-11-12');
+  test('quiet days commit nothing, however long: review dates come from RateGuard', () => {
+    expect(applyUpdates(tableText, check(pages(), '2026-11-12'))).toBeUndefined();
+    expect(applyUpdates(tableText, check(pages(), '2027-03-01'))).toBeUndefined();
   });
 });
 
@@ -330,12 +320,12 @@ describe('GitHub', () => {
     });
     try {
       const gh = new GitHub('token', 'o/r', `http://localhost:${server.port}`);
-      const r = check(with_('deepseek-pricing', (s) => s.replace('<td>$1.32</td>', '<td>$1.50</td>')));
+      const r = check(with_('anthropic-pricing', (s) => s.replace(/(\| Claude Opus 5\.5 [^\n]*?)286 tokens/, '$1300 tokens')));
       const update = applyUpdates(tableText, r)!;
       const res = await syncGitHub({ report: r, table, update, cwd: work, gh, runUrl: 'RUN' });
       expect(res.pr).toBe('https://github.com/o/r/pull/9');
       const pushed = JSON.parse(sh(join(dir, 'remote.git'), 'show', 'price-check/update:src/pricing.json'));
-      expect(pushed.models.find((m: any) => m.id === 'deepseek-v4-pro').input.value).toBe(1.5);
+      expect(pushed.models.find((m: any) => m.id === 'claude-opus-5-5').toolSystemPromptTokens).toBe(300);
       expect(sh(join(dir, 'remote.git'), 'rev-parse', 'main')).toBe(sh(work, 'rev-parse', 'main')); // main untouched
       expect(calls).not.toContain('PUT /repos/o/r/pulls/9/merge');
 
@@ -344,7 +334,7 @@ describe('GitHub', () => {
       expect(res2.pr).toBeUndefined();
       const blocked = issues.find((i) => i.body.includes('price-check-key: pr-blocked'));
       expect(blocked.body).toContain('compare/main...price-check/update');
-      expect(blocked.body).toContain('**input**: 1.32 → **1.5**');
+      expect(blocked.body).toContain('**toolSystemPromptTokens**: 286 → **300**');
     } finally {
       server.stop(true);
     }

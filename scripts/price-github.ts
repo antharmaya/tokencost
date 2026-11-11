@@ -12,7 +12,7 @@
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { type Report, type Table, type UpdateKind, PROVIDERS, renderPrBody } from './check-prices.ts';
+import { type Report, type Table, type UpdateKind, PROVIDERS, isFact, renderPrBody } from './check-prices.ts';
 
 export const LABEL = 'price-check';
 export const BRANCH = 'price-check/update';
@@ -102,6 +102,28 @@ export function desiredIssues(report: Report, runUrl?: string): { desired: Desir
       ...n.names.map((x) => `- ${x}`),
       '',
       'Add a row (with sourceUrl and seenAt), or add the name to `known` in `scripts/price-watch.json` (`bun scripts/check-prices.ts --acknowledge` does that for everything listed) to close this.',
+    ]);
+  }
+
+  // A moved price is RateGuard's to change; tokencost syncs from it (scripts/sync-prices.ts).
+  for (const r of report.rows) {
+    const key = `price:${r.id}`;
+    if (!r.reread && !r.diffs.length) continue; // not looked at today
+    judged.add(key);
+    const prices = r.diffs.filter((d) => !isFact(d.field));
+    if (!prices.length) continue;
+    d(key, `Price check: ${r.id} price moved at the vendor`, [
+      `The vendor page now differs from the price tokencost carries for \`${r.id}\`:`,
+      '',
+      ...prices.flatMap((x) => [`- **${x.field}**: ${x.old} → **${x.new}** (USD per 1M tokens)`, `  > \`${x.quote.replace(/`/g, "'")}\``]),
+      '',
+      'Prices have one source: RateGuard. Change the row in `varbees/rateguard` → `conformance/pricing.json` (and `python3 scripts/gen_pricing.py` there), merge, then here:',
+      '',
+      '```',
+      'bun scripts/sync-prices.ts --from https://raw.githubusercontent.com/varbees/rateguard/main/conformance/pricing.json',
+      '```',
+      '',
+      'This issue closes itself on the first run that finds the table and the page agreeing.',
     ]);
   }
 
@@ -291,9 +313,7 @@ export async function syncGitHub(input: SyncInput): Promise<{ plan: IssuePlan; p
   const open = await gh.openPr();
   if (update) {
     const title =
-      update.kind === 'prices'
-        ? `fix(pricing): vendor price change found ${report.today}`
-        : `chore(pricing): re-verified against vendor pages ${report.today}`;
+`fix(pricing): model facts changed at the vendor ${report.today}`;
     const body = renderPrBody(report, table, update.kind, runUrl);
     pushBranch(input.cwd, update.text, title);
     try {

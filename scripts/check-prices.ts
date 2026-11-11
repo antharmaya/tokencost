@@ -44,8 +44,6 @@ export const TABLE_PATH = join(ROOT, 'src/pricing.json');
 export const WATCH_PATH = join(ROOT, 'scripts/price-watch.json');
 export const FIXTURES = join(ROOT, 'test/fixtures');
 
-/** Open a PR that only re-dates the rows once the table is this old. */
-export const REFRESH_AFTER_DAYS = 30;
 
 // ---------------------------------------------------------------------------
 // Sources
@@ -424,32 +422,30 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 
-export type UpdateKind = 'prices' | 'refresh';
+export type UpdateKind = 'facts';
 
 /**
- * The table to propose, or undefined on a quiet day.
+ * Fields tokencost owns. Every other number a parser reads is a price, and prices live in
+ * RateGuard's conformance/pricing.json (scripts/sync-prices.ts): a moved price becomes an issue
+ * that says what to change there, never an edit here.
+ */
+export const FACT_FIELDS: readonly Field[] = ['batchMultiplier', 'cacheMinimumTokens', 'toolSystemPromptTokens'];
+export const isFact = (f: Field) => FACT_FIELDS.includes(f);
+
+/**
+ * The table to propose, or undefined when no tokencost-owned fact differs.
  *
- * A PR is opened when a number differs, or — with no differences — when the
- * table has gone REFRESH_AFTER_DAYS without a re-dated row, so that the
- * shipped table's date tracks the last real check rather than the last price
- * change. Only rows re-read in full today get a new seenAt; lastReviewed moves
- * only when every row was.
+ * Only facts (FACT_FIELDS) are written. Prices, seenAt and lastReviewed come from RateGuard
+ * through scripts/sync-prices.ts, so the bot neither edits nor re-dates them: a moved price is
+ * reported by desiredIssues() as a `price:` issue instead.
  */
 export function applyUpdates(tableText: string, report: Report): { text: string; kind: UpdateKind } | undefined {
   const table = JSON.parse(tableText) as Table;
-  const diffs = report.rows.flatMap((r) => r.diffs);
-  const reread = report.rows.filter((r) => r.reread);
-  const refreshDue = daysBetween(table.lastReviewed, report.today) >= REFRESH_AFTER_DAYS;
-  if (!diffs.length && !(refreshDue && reread.length)) return undefined;
-
-  for (const r of report.rows) {
-    const row = table.models.find((m) => m.id === r.id)!;
-    for (const d of r.diffs) setValue(row, d.field, d.new);
-    if (r.reread) row.seenAt = report.today;
-  }
-  if (report.rows.every((r) => r.reread)) table.lastReviewed = report.today;
+  const facts = report.rows.flatMap((r) => r.diffs.filter((d) => isFact(d.field)).map((d) => ({ r, d })));
+  if (!facts.length) return undefined;
+  for (const { r, d } of facts) setValue(table.models.find((m) => m.id === r.id)!, d.field, d.new);
   const text = JSON.stringify(table, null, 2) + '\n';
-  return text === tableText ? undefined : { text, kind: diffs.length ? 'prices' : 'refresh' };
+  return text === tableText ? undefined : { text, kind: 'facts' };
 }
 
 function setValue(row: ModelPrice, field: Field, value: number) {
@@ -478,12 +474,11 @@ const code = (s: string) => '`' + s.replace(/`/g, "'") + '`';
 /** The PR body: every change, old -> new, with the vendor's own line. */
 export function renderPrBody(report: Report, table: Table, kind: UpdateKind, runUrl?: string): string {
   const out: string[] = [];
-  const changed = report.rows.filter((r) => r.diffs.length);
-  if (kind === 'prices') {
-    out.push(`The daily price check found ${changed.reduce((a, r) => a + r.diffs.length, 0)} number(s) on the vendor pages that differ from \`src/pricing.json\` on ${report.today}.`);
-  } else {
-    out.push(`No price differs. The table was last re-dated ${table.lastReviewed}, more than ${REFRESH_AFTER_DAYS} days ago, so this PR only moves the dates of the rows re-read today.`);
-  }
+  void kind; // one kind today ('facts'); kept in the signature for the next one
+  const changed = report.rows
+    .map((r) => ({ ...r, diffs: r.diffs.filter((d) => isFact(d.field)) }))
+    .filter((r) => r.diffs.length);
+  out.push(`The daily price check found ${changed.reduce((a, r) => a + r.diffs.length, 0)} model fact(s) on the vendor pages that differ from \`src/pricing.json\` on ${report.today}. Prices are not in this PR: they live in RateGuard's table, and a moved price opens a \`price:\` issue instead.`);
   out.push('', '**This PR is never merged automatically.** Check each quoted line against the page, merge, then tag a release so the npm package carries the new table.', '');
   for (const r of changed) {
     const row = table.models.find((m) => m.id === r.id)!;
@@ -498,14 +493,6 @@ export function renderPrBody(report: Report, table: Table, kind: UpdateKind, run
     }
     out.push('');
   }
-  const reread = report.rows.filter((r) => r.reread).map((r) => r.id);
-  const notReread = report.rows.filter((r) => !r.reread).map((r) => r.id);
-  out.push(`**seenAt → ${report.today}** for the ${reread.length} row(s) re-read in full: ${reread.join(', ') || 'none'}.`);
-  out.push(
-    notReread.length
-      ? `**lastReviewed not moved**: ${notReread.join(', ')} could not be fully re-read (see the open \`price-check\` issues).`
-      : `**lastReviewed → ${report.today}**: every row was re-read.`,
-  );
   if (runUrl) out.push('', `Run: ${runUrl}`);
   out.push('', '<!-- price-check-pr -->');
   return out.join('\n');
