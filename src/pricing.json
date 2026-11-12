@@ -5,7 +5,7 @@
     "repo": "varbees/rateguard",
     "path": "conformance/pricing.json",
     "vendored": "vendor/rateguard-pricing.json",
-    "sha256": "7be18aaacfd6963d47f0a9b8d93e4ebb85f0359c4104be08988471cdca6c8ce5"
+    "sha256": "4d98b7274267e6ba9159638f65378655ae301e4c1cbc20205759c62599fa6791"
   },
   "models": [
     {

@@ -4,6 +4,29 @@
   "lastReviewed": "2026-10-21",
   "models": [
     {
+      "id": "claude-fable-5-2",
+      "provider": "anthropic",
+      "input": 8,
+      "output": 40,
+      "cacheRead": 0.2,
+      "cacheWrite": 10,
+      "cacheWriteLongTTL": 16,
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "seenAt": "2026-11-12"
+    },
+    {
+      "id": "claude-mythos-5-2",
+      "provider": "anthropic",
+      "input": 8,
+      "output": 40,
+      "cacheRead": 0.2,
+      "cacheWrite": 10,
+      "cacheWriteLongTTL": 16,
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "seenAt": "2026-11-12",
+      "note": "Limited availability (Anthropic's page)."
+    },
+    {
       "id": "claude-fable-5-1",
       "provider": "anthropic",
       "input": 10,
@@ -277,6 +300,25 @@
       },
       "sourceUrl": "https://developers.openai.com/api/docs/pricing",
       "seenAt": "2026-10-21"
+    },
+    {
+      "id": "gpt-6.1-terra",
+      "provider": "openai",
+      "input": 1,
+      "output": 5,
+      "cacheRead": 0.05,
+      "cacheWrite": 1.25,
+      "cacheWriteLongTTL": 2.5,
+      "longContext": {
+        "aboveTokens": 272000,
+        "input": 2,
+        "output": 7.5,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5,
+        "cacheWriteLongTTL": 5
+      },
+      "sourceUrl": "https://developers.openai.com/api/docs/pricing",
+      "seenAt": "2026-11-12"
     },
     {
       "id": "gpt-6-luna",
