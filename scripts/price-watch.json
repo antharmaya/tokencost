@@ -21,6 +21,7 @@
   "known": {
     "anthropic": [
       "Claude Fable 5",
+      "Claude Fable 5.2",
       "Claude Haiku 3.5",
       "Claude Haiku 4.5",
       "Claude Opus 4",
@@ -48,7 +49,8 @@
       "gpt-5.6-luna",
       "gpt-5.6-sol",
       "gpt-5.6-terra",
-      "gpt-6-sol"
+      "gpt-6-sol",
+      "gpt-6.1-terra"
     ],
     "deepseek": [],
     "google": [
