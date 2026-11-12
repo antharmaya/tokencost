@@ -94,8 +94,16 @@ export function stripMarkdown(s: string): string {
 }
 
 /** Remove every parenthetical, e.g. "(retired, except on Google Cloud)". */
-function dropParentheticals(s: string): string {
-  return s.replace(/\s*\([^)]*\)/g, '').trim();
+/**
+ * "Claude Opus 4.1 (retired, except on X (Google managed) and Bedrock)" -> "Claude Opus 4.1".
+ * Innermost groups first, repeated, so nested parentheses leave nothing behind.
+ */
+export function dropParentheticals(s: string): string {
+  for (let prev = ''; prev !== s; ) {
+    prev = s;
+    s = s.replace(/\s*\([^()]*\)/g, '');
+  }
+  return s.trim();
 }
 
 /** "$0.125 / MTok" -> 0.125, "$5.00" -> 5. Anything else -> undefined. */
@@ -306,15 +314,19 @@ export function parseAnthropicCacheMinimums(md: string): Map<string, Quoted> {
 
 const OPENAI = 'openai pricing page';
 
+// Since 2026-10-21 OpenAI lists cache writes per lifetime: "30m write" (the default) and
+// "12h write" (the long one), which are cacheWrite and cacheWriteLong here.
 const OPENAI_COLUMNS = [
   'Model',
   'Short context input',
   'Short context cached input',
-  'Short context cache writes',
+  'Short context 30m write',
+  'Short context 12h write',
   'Short context output',
   'Long context input',
   'Long context cached input',
-  'Long context cache writes',
+  'Long context 30m write',
+  'Long context 12h write',
   'Long context output',
 ] as const;
 
@@ -322,10 +334,12 @@ const OPENAI_FIELDS: Field[] = [
   'input',
   'cacheRead',
   'cacheWrite',
+  'cacheWriteLong',
   'output',
   'longContext.input',
   'longContext.cacheRead',
   'longContext.cacheWrite',
+  'longContext.cacheWriteLong',
   'longContext.output',
 ];
 
@@ -338,17 +352,38 @@ function tableAfterHeading(source: string, md: string, heading: string): MdTable
   return t;
 }
 
+/**
+ * Every table in the section that starts at `heading`: from the first table after it to the
+ * next markdown heading after that table. OpenAI splits a section into a wide table (short and
+ * long context) and a narrow one (Model | Input | Output | Cached input) for older models.
+ */
+function tablesInSection(source: string, md: string, heading: string): MdTable[] {
+  const first = tableAfterHeading(source, md, heading);
+  const lines = md.split('\n');
+  let end = lines.length;
+  for (let i = first.at + 1; i < lines.length; i++) {
+    if (/^#{1,6}\s/.test(lines[i]!.trim())) {
+      end = i;
+      break;
+    }
+  }
+  return markdownTables(md).filter((t) => t.at >= first.at && t.at < end);
+}
+
+const OPENAI_NARROW = ['Model', 'Input', 'Output', 'Cached input'] as const;
+const OPENAI_NARROW_FIELDS: Field[] = ['input', 'output', 'cacheRead'];
+
 export function parseOpenAIPricing(md: string): ParsedSource {
   const models = new Map<string, VendorModel>();
   const names: string[] = [];
-  const std = tableAfterHeading(OPENAI, md, '### Standard pricing data');
-  const cols = columns(OPENAI, std, [...OPENAI_COLUMNS]);
+  const [std, ...narrow] = tablesInSection(OPENAI, md, '### Standard pricing data');
+  const cols = columns(OPENAI, std!, [...OPENAI_COLUMNS]);
 
   // "Short context: ≤272K input tokens. Long context: >272K input tokens."
   const lc = /^.*Long context:\s*>\s*([\d.]+)\s*K input tokens.*$/m.exec(md);
   const longLine = lc ? { value: Math.round(Number(lc[1]) * 1000), quote: lc[0].trim() } : undefined;
 
-  for (const row of std.rows) {
+  for (const row of std!.rows) {
     const label = dropParentheticals(stripMarkdown(row.cells[cols[0]!] ?? ''));
     if (!label) continue;
     names.push(label);
@@ -372,15 +407,35 @@ export function parseOpenAIPricing(md: string): ParsedSource {
     }
   }
 
-  const batch = tableAfterHeading(OPENAI, md, '### Batch pricing data');
-  const [bModel, bIn] = columns(OPENAI, batch, ['Model', 'Short context input']);
-  for (const row of batch.rows) {
-    const label = dropParentheticals(stripMarkdown(row.cells[bModel!] ?? ''));
-    const m = models.get(label);
-    const si = m?.fields.input?.value;
-    const bi = dollars(row.cells[bIn!] ?? '');
-    if (!m || si === undefined || bi === undefined) continue;
-    m.fields.batchMultiplier = { value: ratio(bi, si), quote: row.line };
+  // Older models: the narrow table under the same heading. Short context only.
+  for (const t of narrow) {
+    const nc = columns(OPENAI, t, [...OPENAI_NARROW]);
+    for (const row of t.rows) {
+      const label = dropParentheticals(stripMarkdown(row.cells[nc[0]!] ?? ''));
+      if (!label || models.has(label)) continue;
+      names.push(label);
+      const m = getModel(models, label);
+      OPENAI_NARROW_FIELDS.forEach((field, k) => {
+        const cell = row.cells[nc[k + 1]!] ?? '';
+        if (isNone(cell)) return;
+        const v = dollars(cell);
+        if (v === undefined) m.problems.push(`could not read ${field} from "${stripMarkdown(cell)}" in: ${row.line}`);
+        else m.fields[field] = { value: v, quote: row.line };
+      });
+    }
+  }
+
+  for (const batch of tablesInSection(OPENAI, md, '### Batch pricing data')) {
+    const inputCol = batch.header.includes('Short context input') ? 'Short context input' : 'Input';
+    const [bModel, bIn] = columns(OPENAI, batch, ['Model', inputCol]);
+    for (const row of batch.rows) {
+      const label = dropParentheticals(stripMarkdown(row.cells[bModel!] ?? ''));
+      const m = models.get(label);
+      const si = m?.fields.input?.value;
+      const bi = dollars(row.cells[bIn!] ?? '');
+      if (!m || si === undefined || bi === undefined) continue;
+      m.fields.batchMultiplier = { value: ratio(bi, si), quote: row.line };
+    }
   }
 
   return { models, names };

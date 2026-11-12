@@ -19,6 +19,7 @@ import {
   parseDeepSeekPricing,
   parseGooglePricing,
   parseOpenAIPricing,
+  dropParentheticals,
   readPaidCell,
   LayoutError,
 } from '../scripts/price-parsers.ts';
@@ -80,6 +81,10 @@ describe('parsers read the saved vendor pages', () => {
     const o = parseOpenAIPricing(fx('openai-pricing.md'));
     const a = o.models.get('gpt-6-astra')!;
     expect([a.fields.input!.value, a.fields.cacheRead!.value, a.fields.cacheWrite!.value, a.fields.output!.value]).toEqual([10, 1, 12.5, 50]);
+    // 2026-10-21 layout: cache writes per lifetime, "30m write" and "12h write".
+    expect([a.fields.cacheWriteLong!.value, a.fields['longContext.cacheWriteLong']!.value]).toEqual([25, 50]);
+    // Older models sit in a second, narrow table under the same heading.
+    expect(o.models.get('gpt-5.4-mini')!.fields.input!.value).toBe(0.75);
     expect(a.fields['longContext.aboveTokens']!.value).toBe(272000);
     expect(a.fields['longContext.aboveTokens']!.quote).toContain('>272K input tokens');
     expect(a.fields['longContext.output']!.value).toBe(75);
@@ -88,6 +93,11 @@ describe('parsers read the saved vendor pages', () => {
     expect(g55.fields['longContext.input']!.value).toBe(10);
     expect(o.models.get('gpt-5.4-mini')!.fields['longContext.input']).toBeUndefined();
     expect(o.models.get('gpt-5.4-mini')!.fields.batchMultiplier!.value).toBe(0.5);
+  });
+
+  test('nested parentheses leave no fragment behind', () => {
+    expect(dropParentheticals('Claude Opus 4.1 (retired, except on Claude Models on Google Cloud (Google managed) and Bedrock)')).toBe('Claude Opus 4.1');
+    expect(dropParentheticals('gpt-5.5 (<272K context length)')).toBe('gpt-5.5');
   });
 
   test('DeepSeek: PEAK, not off-peak', () => {

@@ -6,5 +6,8 @@
     "openai-pricing.md": "https://developers.openai.com/api/docs/pricing.md",
     "deepseek-pricing.html": "https://api-docs.deepseek.com/quick_start/pricing/",
     "google-pricing.html": "https://ai.google.dev/gemini-api/docs/pricing?hl=en"
+  },
+  "refetched": {
+    "openai-pricing.md": "2026-11-12 (the page split cache writes into 30m and 12h columns on 2026-10-21)"
   }
 }
